@@ -1,20 +1,26 @@
 """
-Anomaly Detection Service
-Identify unusual patterns in shift data
+Anomaly Detection Service - Identify unusual patterns in shift data
+Detects: consecutive nights, chronic low sleep, rising stress, frequent high-risk shifts
 """
 
 from datetime import timedelta, date
 from sqlalchemy import and_
+from app.models import Shift
+
 
 class AnomalyService:
+    """Detect anomalies in user's shift patterns"""
     
     @staticmethod
-    def detect_anomalies(db, User, Shift, user_id):
+    def detect_anomalies(user_id):
         """
         Detect anomalies in user's recent shifts
         
+        Args:
+            user_id: User ID to analyze
+        
         Returns:
-            List of anomalies with descriptions
+            List of anomalies with type, severity, and description
         """
         
         anomalies = []
@@ -137,53 +143,3 @@ class AnomalyService:
             })
         
         return anomalies
-    
-    @staticmethod
-    def get_anomaly_ai_warning(llm_service, user_first_name, anomalies):
-        """
-        Generate AI warning message for anomalies
-        """
-        
-        if not anomalies:
-            return None
-        
-        anomaly_summaries = "\n".join([
-            f"- {a['type']}: {a['description']}"
-            for a in anomalies
-        ])
-        
-        severity_levels = [a['severity'] for a in anomalies]
-        max_severity = 'high' if 'high' in severity_levels else 'medium'
-        
-        prompt = f"""Generate a SHORT, URGENT warning message for {user_first_name} about detected anomalies in their shift patterns.
-
-Detected Anomalies:
-{anomaly_summaries}
-
-Max Severity: {max_severity}
-
-Task:
-1. Be direct and clear (they need to understand the seriousness)
-2. DO NOT be scary, but be honest
-3. Suggest 2-3 IMMEDIATE actions
-4. Keep it SHORT (2-3 sentences max)
-
-Tone: Urgent but supportive.
-"""
-        
-        try:
-            response = llm_service.client.chat.completions.create(
-                model=llm_service.model,
-                messages=[
-                    {"role": "system", "content": llm_service.SYSTEM_MESSAGE},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-            
-            return response.choices[0].message.content
-        
-        except Exception as e:
-            print(f"LLM Error in get_anomaly_ai_warning: {str(e)}")
-            return f"⚠️ Multiple concerning patterns detected. Please prioritize rest and recovery."

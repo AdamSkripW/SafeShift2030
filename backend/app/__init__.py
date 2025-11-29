@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 import os
 
 def create_app(config_name='development'):
@@ -20,14 +21,19 @@ def create_app(config_name='development'):
         }
     })
     
+    # Initialize JWT
+    jwt = JWTManager(app)
+    
     # Initialize database connection (no table creation)
     from app.models import db
     db.init_app(app)
     
     # Register blueprints
     from app.routes import main_bp, api_bp
+    from app.auth import auth_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     
     # Error handlers
     @app.errorhandler(404)

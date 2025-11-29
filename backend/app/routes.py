@@ -4,6 +4,13 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 
+# Import services
+from app.services import (
+    SafeShiftService,
+    AnomalyService,
+    LLMService
+)
+
 main_bp = Blueprint('main', __name__)
 api_bp = Blueprint('api', __name__)
 
@@ -15,6 +22,13 @@ def index():
         'version': '1.0',
         'endpoints': {
             'health': '/api/health',
+            'auth': {
+                'register': '/api/auth/register',
+                'login': '/api/auth/login',
+                'logout': '/api/auth/logout',
+                'refresh': '/api/auth/refresh',
+                'me': '/api/auth/me'
+            },
             'hospitals': '/api/hospitals',
             'users': '/api/users',
             'admins': '/api/admins',
@@ -370,6 +384,38 @@ def create_shift():
         # Parse date
         shift_date = datetime.strptime(data['ShiftDate'], '%Y-%m-%d').date()
         
+        # Calculate SafeShift Index
+        index_result = SafeShiftService.calculate_index(
+            hours_slept=data['HoursSleptBefore'],
+            shift_type=data['ShiftType'],
+            shift_length=data['ShiftLengthHours'],
+            patient_count=data['PatientsCount'],
+            stress_level=data['StressLevel']
+        )
+        
+        # Generate AI insights for high-risk shifts (optional)
+        ai_explanation = None
+        ai_tips = None
+        if index_result['zone'] == 'red':
+            try:
+                insights = LLMService.generate_insights(
+                    shift_data={
+                        'hours_slept': data['HoursSleptBefore'],
+                        'shift_type': data['ShiftType'],
+                        'shift_length': data['ShiftLengthHours'],
+                        'patient_count': data['PatientsCount'],
+                        'stress_level': data['StressLevel'],
+                        'shift_note': data.get('ShiftNote', '')
+                    },
+                    index=index_result['index'],
+                    zone=index_result['zone']
+                )
+                ai_explanation = insights.get('explanation')
+                ai_tips = insights.get('tips')
+            except Exception as llm_error:
+                # LLM is optional - continue without it
+                print(f"LLM generation skipped: {llm_error}")
+        
         shift = Shift(
             UserId=data['UserId'],
             ShiftDate=shift_date,
@@ -379,14 +425,42 @@ def create_shift():
             PatientsCount=data['PatientsCount'],
             StressLevel=data['StressLevel'],
             ShiftNote=data.get('ShiftNote'),
-            SafeShiftIndex=data.get('SafeShiftIndex', 0),
-            Zone=data.get('Zone', 'green'),
-            AiExplanation=data.get('AiExplanation'),
-            AiTips=data.get('AiTips')
+            SafeShiftIndex=index_result['index'],
+            Zone=index_result['zone'],
+            AiExplanation=ai_explanation,
+            AiTips=ai_tips
         )
         
         db.session.add(shift)
         db.session.commit()
+        
+        # Run anomaly detection after shift is saved
+        try:
+            anomalies = AnomalyService.detect_anomalies(user_id=data['UserId'])
+            
+            # Create alerts for detected anomalies
+            for anomaly in anomalies:
+                # Check if alert already exists
+                existing_alert = BurnoutAlert.query.filter_by(
+                    UserId=data['UserId'],
+                    AlertType=anomaly['type'],
+                    IsResolved=False
+                ).first()
+                
+                if not existing_alert:
+                    alert = BurnoutAlert(
+                        UserId=data['UserId'],
+                        AlertType=anomaly['type'],
+                        Severity=anomaly['severity'],
+                        AlertMessage=anomaly['message'],
+                        IsResolved=False
+                    )
+                    db.session.add(alert)
+            
+            db.session.commit()
+        except Exception as anomaly_error:
+            # Anomaly detection is supplementary - don't fail the whole request
+            print(f"Anomaly detection error: {anomaly_error}")
         
         return jsonify({
             'success': True,
@@ -405,13 +479,50 @@ def update_shift(shift_id):
         data = request.get_json()
         
         updatable = ['HoursSleptBefore', 'ShiftType', 'ShiftLengthHours', 'PatientsCount',
-                     'StressLevel', 'ShiftNote', 'SafeShiftIndex', 'Zone', 'AiExplanation', 'AiTips']
+                     'StressLevel', 'ShiftNote']
+        
+        # Track if we need to recalculate index
+        recalculate = False
         for field in updatable:
             if field in data:
                 setattr(shift, field, data[field])
+                if field != 'ShiftNote':  # All except notes affect the index
+                    recalculate = True
         
         if 'ShiftDate' in data:
             shift.ShiftDate = datetime.strptime(data['ShiftDate'], '%Y-%m-%d').date()
+        
+        # Recalculate SafeShift Index if relevant fields changed
+        if recalculate:
+            index_result = SafeShiftService.calculate_index(
+                hours_slept=shift.HoursSleptBefore,
+                shift_type=shift.ShiftType,
+                shift_length=shift.ShiftLengthHours,
+                patient_count=shift.PatientsCount,
+                stress_level=shift.StressLevel
+            )
+            shift.SafeShiftIndex = index_result['index']
+            shift.Zone = index_result['zone']
+            
+            # Update AI insights for high-risk shifts
+            if index_result['zone'] == 'red':
+                try:
+                    insights = LLMService.generate_insights(
+                        shift_data={
+                            'hours_slept': shift.HoursSleptBefore,
+                            'shift_type': shift.ShiftType,
+                            'shift_length': shift.ShiftLengthHours,
+                            'patient_count': shift.PatientsCount,
+                            'stress_level': shift.StressLevel,
+                            'shift_note': shift.ShiftNote or ''
+                        },
+                        index=index_result['index'],
+                        zone=index_result['zone']
+                    )
+                    shift.AiExplanation = insights.get('explanation')
+                    shift.AiTips = insights.get('tips')
+                except Exception as llm_error:
+                    print(f"LLM generation skipped: {llm_error}")
         
         db.session.commit()
         return jsonify({

@@ -1,18 +1,28 @@
 """
-Burnout Risk Prediction Service
-Predict future burnout risk based on trends
+Prediction Service - Burnout risk prediction using trend analysis
+Predicts future burnout risk based on last 30 days of shift data
 """
 
 from datetime import timedelta, date
 from sqlalchemy import and_
 import statistics
+from app.models import Shift
+
 
 class PredictionService:
+    """Predict future burnout risk based on trends"""
     
     @staticmethod
-    def predict_burnout_risk(db, Shift, user_id, days_ahead=14):
+    def predict_burnout_risk(user_id, days_ahead=14):
         """
-        Predict burnout risk for next N days
+        Predict burnout risk for next N days using linear regression
+        
+        Args:
+            user_id: User ID to analyze
+            days_ahead: Number of days to predict ahead (default: 14)
+        
+        Returns:
+            dict: Prediction data including risk level, confidence, reasoning
         """
         
         # Get last 30 days of shifts
@@ -34,10 +44,10 @@ class PredictionService:
                 'reasoning': 'Not enough data to predict. Please log more shifts.'
             }
         
-        # Calculate trend
+        # Calculate trend using linear regression
         indices = [s.SafeShiftIndex for s in shifts]
         
-        # Linear regression (simple)
+        # Simple linear regression
         n = len(indices)
         x = list(range(n))
         y = indices
@@ -113,52 +123,3 @@ class PredictionService:
             'current_index': last_index,
             'last_30_days_avg': round(sum(indices) / len(indices), 1)
         }
-    
-    @staticmethod
-    def get_prediction_ai_message(llm_service, user_first_name, prediction_data):
-        """
-        Generate AI message about burnout prediction
-        """
-        
-        if prediction_data['prediction'] == 'insufficient_data':
-            return prediction_data['reasoning']
-        
-        pred_index = prediction_data['predicted_index']
-        pred_level = prediction_data['prediction']
-        days_until = prediction_data['days_until_critical']
-        confidence = prediction_data['confidence']
-        
-        prompt = f"""Generate a SHORT prediction warning for {user_first_name} about their burnout risk in the next 14 days.
-
-Prediction Data:
-- Predicted SafeShift Index: {pred_index} (out of 100)
-- Risk Level: {pred_level}
-- Days until critical zone (70+): {days_until if days_until else 'N/A'}
-- Confidence: {confidence * 100:.0f}%
-- Reasoning: {prediction_data['reasoning']}
-
-Task:
-1. Be honest about the prediction
-2. Suggest 2-3 PREVENTIVE actions they can take NOW
-3. Keep it SHORT (2-3 sentences)
-4. NOT scary, but realistic
-
-Tone: Forward-looking and supportive.
-"""
-        
-        try:
-            response = llm_service.client.chat.completions.create(
-                model=llm_service.model,
-                messages=[
-                    {"role": "system", "content": llm_service.SYSTEM_MESSAGE},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-            
-            return response.choices[0].message.content
-        
-        except Exception as e:
-            print(f"LLM Error in get_prediction_ai_message: {str(e)}")
-            return f"Based on current trends, your burnout risk may increase in the next 2 weeks. Consider preventive measures now."

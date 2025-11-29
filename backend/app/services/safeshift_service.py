@@ -1,8 +1,11 @@
 """
-SafeShift Index Algorithm Service
+SafeShift Index Service - Burnout risk calculation algorithm
+Calculates SafeShift Index (0-100) based on shift parameters
 """
 
+
 class SafeShiftService:
+    """Calculate SafeShift Index and risk zone"""
     
     @staticmethod
     def calculate_index(hours_slept, shift_type, shift_length, patients_count, stress_level):
@@ -17,12 +20,12 @@ class SafeShiftService:
             stress_level: Subjective stress (1-10)
         
         Returns:
-            index (0-100), zone ('green', 'yellow', 'red')
+            tuple: (index, zone) where index is 0-100 and zone is 'green', 'yellow', or 'red'
         """
         
         index = 0
         
-        # 1. Sleep Score (0-30)
+        # 1. Sleep Score (0-30 points)
         if hours_slept < 4:
             index += 30
         elif hours_slept < 5:
@@ -32,13 +35,13 @@ class SafeShiftService:
         elif hours_slept < 7:
             index += 10
         
-        # 2. Shift Type Score (0-25)
+        # 2. Shift Type Score (0-25 points)
         if shift_type == 'night':
             index += 25
         else:
             index += 10
         
-        # 3. Shift Length Score (0-20)
+        # 3. Shift Length Score (0-20 points)
         if shift_length >= 24:
             index += 20
         elif shift_length >= 12:
@@ -46,7 +49,7 @@ class SafeShiftService:
         elif shift_length >= 8:
             index += 5
         
-        # 4. Patients Score (0-15)
+        # 4. Patients Score (0-15 points)
         if patients_count > 20:
             index += 15
         elif patients_count > 15:
@@ -54,7 +57,7 @@ class SafeShiftService:
         elif patients_count > 10:
             index += 5
         
-        # 5. Stress Score (0-20)
+        # 5. Stress Score (0-20 points)
         index += int((stress_level / 10) * 20)
         
         # Cap at 100
