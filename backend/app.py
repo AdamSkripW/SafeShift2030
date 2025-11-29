@@ -2,7 +2,7 @@
 SafeShift 2030 - Backend Flask Application
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
@@ -22,6 +22,16 @@ app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Connection Pooling Configuration
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 3,
+    'pool_recycle': 3600,
+    'pool_pre_ping': True,
+    'pool_timeout': 30,
+    'max_overflow': 1,
+}
+
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 
@@ -42,7 +52,7 @@ class User(db.Model):
     PasswordHash = db.Column(db.String(255), nullable=False)
     FirstName = db.Column(db.String(100), nullable=False)
     LastName = db.Column(db.String(100), nullable=False)
-    Role = db.Column(db.String(50), nullable=False)  # 'nurse', 'doctor', 'student'
+    Role = db.Column(db.String(50), nullable=False)
     Department = db.Column(db.String(100), nullable=False)
     Hospital = db.Column(db.String(100), nullable=False)
     HospitalId = db.Column(db.Integer, db.ForeignKey('Hospitals.HospitalId'))
@@ -70,14 +80,14 @@ class Shift(db.Model):
     UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId'), nullable=False)
     ShiftDate = db.Column(db.Date, nullable=False)
     HoursSleptBefore = db.Column(db.Integer, nullable=False)
-    ShiftType = db.Column(db.String(10), nullable=False)  # 'day' or 'night'
+    ShiftType = db.Column(db.String(10), nullable=False)
     ShiftLengthHours = db.Column(db.Integer, nullable=False)
     PatientsCount = db.Column(db.Integer, nullable=False)
     StressLevel = db.Column(db.Integer, nullable=False)
     ShiftNote = db.Column(db.Text)
     
     SafeShiftIndex = db.Column(db.Integer, default=0)
-    Zone = db.Column(db.String(10), default='green')  # 'green', 'yellow', 'red'
+    Zone = db.Column(db.String(10), default='green')
     AiExplanation = db.Column(db.Text)
     AiTips = db.Column(db.Text)
     
@@ -93,7 +103,7 @@ def health_check():
     """Check if backend is running"""
     return jsonify({
         'status': 'ok',
-        'message': 'SafeShift 2030 Backend is running'
+        'message': 'SafeShift 2030 Backend is running ✓'
     }), 200
 
 # ============================================
@@ -109,10 +119,27 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 # ============================================
+# IMPORT & REGISTER BLUEPRINTS
+# ============================================
+
+
+from safeshift.routes.auth import auth_bp
+from safeshift.routes.shifts import shifts_bp
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(shifts_bp)
+
+# ============================================
 # RUN APP
 # ============================================
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()  # Create tables if they don't exist
+        try:
+            db.create_all()
+            print("✓ Database tables created/verified")
+        except Exception as e:
+            print(f"⚠ Error creating tables: {str(e)}")
+    
+    print("🚀 Starting SafeShift 2030 Backend...")
     app.run(debug=True, host='0.0.0.0', port=5000)
