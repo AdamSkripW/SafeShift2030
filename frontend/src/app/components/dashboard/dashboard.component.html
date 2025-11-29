@@ -20,7 +20,7 @@
       <!-- Welcome Header -->
       <header class="welcome-header">
         <div>
-          <h1>{{ getGreeting() }}, {{ (userProfile?.fullName || 'there').split(' ')[0] }}!</h1>
+          <h1>{{ getGreeting() }}, {{ currentUser?.FirstName || 'there' }}!</h1>
           <p class="subtitle">Here's your well-being overview</p>
         </div>
         <button class="btn-primary" (click)="createNewShift()">
@@ -139,39 +139,39 @@
         <div class="insight-card">
           <div class="insight-header">
             <div class="insight-date">
-              <span class="date-icon">{{ latestShift.shiftType === 'night' ? '🌙' : '☀️' }}</span>
-              <span>{{ formatShortDate(latestShift.shiftDate) }}</span>
+              <span class="date-icon">{{ latestShift.ShiftType === 'night' ? '🌙' : '☀️' }}</span>
+              <span>{{ formatShortDate(latestShift.ShiftDate) }}</span>
             </div>
-            <span class="zone-badge" [ngClass]="getZoneClass(latestShift.zone)">
-              {{ latestShift.zone || 'N/A' }}
+            <span class="zone-badge" [ngClass]="getZoneClass(latestShift.Zone)">
+              {{ latestShift.Zone || 'N/A' }}
             </span>
           </div>
 
           <div class="insight-stats">
             <div class="insight-stat">
               <span class="stat-label">SafeShift Index</span>
-              <span class="stat-value" [ngClass]="getZoneClass(latestShift.zone)">
-                {{ latestShift.safeShiftIndex || 'N/A' }}
+              <span class="stat-value" [ngClass]="getZoneClass(latestShift.Zone)">
+                {{ latestShift.SafeShiftIndex || 'N/A' }}
               </span>
             </div>
             <div class="insight-stat">
               <span class="stat-label">Sleep</span>
-              <span class="stat-value">{{ latestShift.hoursSleptBefore }}h</span>
+              <span class="stat-value">{{ latestShift.HoursSleptBefore }}h</span>
             </div>
             <div class="insight-stat">
               <span class="stat-label">Stress</span>
-              <span class="stat-value">{{ latestShift.stressLevel }}/10</span>
+              <span class="stat-value">{{ latestShift.StressLevel }}/10</span>
             </div>
           </div>
 
-          <div class="insight-ai" *ngIf="latestShift.aiExplanation">
+          <div class="insight-ai" *ngIf="latestShift.AiExplanation">
             <h4>Analysis</h4>
-            <p>{{ latestShift.aiExplanation }}</p>
+            <p>{{ latestShift.AiExplanation }}</p>
           </div>
 
-          <div class="insight-ai" *ngIf="latestShift.aiTips">
+          <div class="insight-ai" *ngIf="latestShift.AiTips">
             <h4>Recommendations</h4>
-            <p style="white-space: pre-line;">{{ latestShift.aiTips }}</p>
+            <p style="white-space: pre-line;">{{ latestShift.AiTips }}</p>
           </div>
         </div>
       </div>

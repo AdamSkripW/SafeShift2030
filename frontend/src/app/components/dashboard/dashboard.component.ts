@@ -1,11 +1,11 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { NavbarComponent } from '../../components/navbar/navbar.component';
+import { NavbarComponent } from '../navbar/navbar.component';
 import { ShiftService } from '../../services/shift.service';
-import { UserProfileService } from '../../services/user-profile.service';
+import { AuthService } from '../../services/auth.service';
 import { Shift, Zone } from '../../models/shift.model';
-import { UserProfile } from '../../models/user-profile.model';
+import { User } from '../../models/user.model';
 
 interface StressDataPoint {
   date: string;
@@ -22,7 +22,7 @@ interface StressDataPoint {
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent implements OnInit {
-  userProfile: UserProfile | null = null;
+  currentUser: User | null = null;
   recentShifts: Shift[] = [];
   stressData: StressDataPoint[] = [];
   loading = true;
@@ -37,17 +37,20 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private shiftService: ShiftService,
-    private userProfileService: UserProfileService,
+    private authService: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.userProfile = this.userProfileService.getUserProfile();
+    // Subscribe to current user
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
     
-    // If no user profile, redirect to start page
-    if (!this.userProfile) {
-      this.loading = false; // Stop loading before redirect
+    // If no authenticated user, redirect to start page
+    if (!this.authService.isAuthenticated()) {
+      this.loading = false;
       this.router.navigate(['/start']);
       return;
     }
@@ -65,9 +68,19 @@ export class DashboardComponent implements OnInit {
     console.log('Loading dashboard data...');
     this.shiftService.getUserShifts().subscribe({
       next: (shifts) => {
-        console.log('Received shifts:', shifts.length);
+        console.log('Received shifts:', shifts);
+        
+        // Ensure shifts is an array
+        if (!Array.isArray(shifts)) {
+          console.error('Shifts is not an array:', shifts);
+          this.errorMessage = 'Invalid data format received from server.';
+          this.loading = false;
+          return;
+        }
+        
+        console.log('Number of shifts:', shifts.length);
         this.recentShifts = shifts
-          .sort((a, b) => new Date(b.shiftDate).getTime() - new Date(a.shiftDate).getTime())
+          .sort((a, b) => new Date(b.ShiftDate).getTime() - new Date(a.ShiftDate).getTime())
           .slice(0, 7); // Last 7 shifts
 
         this.calculateStats(shifts);
@@ -79,8 +92,9 @@ export class DashboardComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading dashboard data:', error);
-        this.errorMessage = 'Failed to load dashboard data.';
+        this.errorMessage = error.error?.message || 'Failed to load dashboard data. Please try again.';
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -98,15 +112,15 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
-    const totalStress = shifts.reduce((sum, shift) => sum + shift.stressLevel, 0);
-    const totalSleep = shifts.reduce((sum, shift) => sum + shift.hoursSleptBefore, 0);
+    const totalStress = shifts.reduce((sum, shift) => sum + shift.StressLevel, 0);
+    const totalSleep = shifts.reduce((sum, shift) => sum + shift.HoursSleptBefore, 0);
 
     this.averageStress = Math.round(totalStress / shifts.length);
     this.averageSleep = Math.round((totalSleep / shifts.length) * 10) / 10;
 
     // Get current zone from latest shift
-    if (shifts.length > 0 && shifts[0].zone) {
-      this.currentZone = shifts[0].zone;
+    if (shifts.length > 0 && shifts[0].Zone) {
+      this.currentZone = shifts[0].Zone;
     }
   }
 
@@ -117,10 +131,10 @@ export class DashboardComponent implements OnInit {
     this.stressData = shifts
       .reverse() // Oldest to newest for graph
       .map(shift => ({
-        date: shift.shiftDate,
-        stressLevel: shift.stressLevel,
-        zone: shift.zone || 'green',
-        displayDate: this.formatShortDate(shift.shiftDate)
+        date: shift.ShiftDate,
+        stressLevel: shift.StressLevel,
+        zone: shift.Zone || 'green',
+        displayDate: this.formatShortDate(shift.ShiftDate)
       }));
   }
 

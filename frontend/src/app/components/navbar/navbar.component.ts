@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { UserProfileService } from '../../services/user-profile.service';
+import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
-import { UserProfile } from '../../models/user-profile.model';
+import { User } from '../../models/user.model';
 
 @Component({
   selector: 'app-navbar',
@@ -13,18 +13,21 @@ import { UserProfile } from '../../models/user-profile.model';
   styleUrls: ['./navbar.component.css']
 })
 export class NavbarComponent implements OnInit {
-  userProfile: UserProfile | null = null;
+  currentUser: User | null = null;
   mobileMenuOpen = false;
   isDarkMode = false;
 
   constructor(
-    private userProfileService: UserProfileService,
+    private authService: AuthService,
     private themeService: ThemeService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.userProfile = this.userProfileService.getUserProfile();
+    // Subscribe to current user
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
     
     // Subscribe to theme changes
     this.themeService.darkMode$.subscribe(isDark => {
@@ -42,7 +45,7 @@ export class NavbarComponent implements OnInit {
 
   logout(): void {
     if (confirm('Are you sure you want to logout?')) {
-      this.userProfileService.clearUserProfile();
+      this.authService.logout();
       this.router.navigate(['/start']);
     }
   }

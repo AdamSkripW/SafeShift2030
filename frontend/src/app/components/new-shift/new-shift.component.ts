@@ -69,13 +69,13 @@ export class NewShiftComponent implements OnInit {
     this.loading = true;
 
     const shiftData: ShiftFormData = {
-      shiftDate: this.shiftForm.value.shiftDate,
-      hoursSleptBefore: Number(this.shiftForm.value.hoursSleptBefore),
-      shiftType: this.shiftForm.value.shiftType,
-      shiftLengthHours: Number(this.shiftForm.value.shiftLengthHours),
-      patientsCount: Number(this.shiftForm.value.patientsCount),
-      stressLevel: Number(this.shiftForm.value.stressLevel),
-      shiftNote: this.shiftForm.value.shiftNote?.trim() || undefined
+      ShiftDate: this.shiftForm.value.shiftDate,
+      HoursSleptBefore: Number(this.shiftForm.value.hoursSleptBefore),
+      ShiftType: this.shiftForm.value.shiftType,
+      ShiftLengthHours: Number(this.shiftForm.value.shiftLengthHours),
+      PatientsCount: Number(this.shiftForm.value.patientsCount),
+      StressLevel: Number(this.shiftForm.value.stressLevel),
+      ShiftNote: this.shiftForm.value.shiftNote?.trim() || undefined
     };
 
     this.shiftService.createShift(shiftData).subscribe({
