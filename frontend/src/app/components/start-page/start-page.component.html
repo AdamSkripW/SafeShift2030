@@ -1,0 +1,69 @@
+<div class="start-page-container">
+  <div class="content-wrapper">
+    <header class="page-header">
+      <h1>Welcome to SafeShift 2030</h1>
+      <p class="subtitle">Let's get started with your basic information</p>
+    </header>
+
+    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form">
+      <!-- Full Name Field -->
+      <div class="form-group">
+        <label for="fullName" class="form-label">Full Name *</label>
+        <input
+          type="text"
+          id="fullName"
+          formControlName="fullName"
+          class="form-input"
+          [class.invalid]="submitted && f['fullName'].errors"
+          placeholder="Enter your full name"
+          autocomplete="name"
+        />
+        <div class="error-message" *ngIf="submitted && f['fullName'].errors">
+          <span *ngIf="f['fullName'].errors['required']">Full name is required</span>
+          <span *ngIf="f['fullName'].errors['minlength']">Name must be at least 2 characters</span>
+        </div>
+      </div>
+
+      <!-- Role Field -->
+      <div class="form-group">
+        <label for="role" class="form-label">Role *</label>
+        <select
+          id="role"
+          formControlName="role"
+          class="form-input"
+          [class.invalid]="submitted && f['role'].errors"
+        >
+          <option value="" disabled>Select your role</option>
+          <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
+        </select>
+        <div class="error-message" *ngIf="submitted && f['role'].errors">
+          <span *ngIf="f['role'].errors['required']">Role is required</span>
+        </div>
+      </div>
+
+      <!-- Department Field -->
+      <div class="form-group">
+        <label for="department" class="form-label">Department *</label>
+        <select
+          id="department"
+          formControlName="department"
+          class="form-input"
+          [class.invalid]="submitted && f['department'].errors"
+        >
+          <option value="" disabled>Select your department</option>
+          <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+        </select>
+        <div class="error-message" *ngIf="submitted && f['department'].errors">
+          <span *ngIf="f['department'].errors['required']">Department is required</span>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">
+          Save &amp; Continue
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
