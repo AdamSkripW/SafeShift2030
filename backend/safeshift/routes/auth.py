@@ -18,22 +18,29 @@ def register():
     if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
     
-    # Import here to avoid circular imports
-    from app import db, User
+    try:
+        # ⭐ Import from models (not create_app)
+        from models import db, User
+        
+        result, status_code = AuthService.register_user(
+            db,
+            User,
+            email=data['email'],
+            password=data['password'],
+            first_name=data['firstName'],
+            last_name=data['lastName'],
+            role=data['role'],
+            department=data['department'],
+            hospital=data['hospital']
+        )
+        
+        return jsonify(result), status_code
     
-    result, status_code = AuthService.register_user(
-        db,
-        User,
-        email=data['email'],
-        password=data['password'],
-        first_name=data['firstName'],
-        last_name=data['lastName'],
-        role=data['role'],
-        department=data['department'],
-        hospital=data['hospital']
-    )
-    
-    return jsonify(result), status_code
+    except Exception as e:
+        print(f"[ROUTE] Register error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -44,16 +51,24 @@ def login():
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Missing email or password'}), 400
     
-    # Import here to avoid circular imports
-    from app import User
+    try:
+        # ⭐ Import from models (not create_app)
+        from models import db, User
+        
+        result, status_code = AuthService.login_user(
+            db,
+            User,
+            email=data['email'],
+            password=data['password']
+        )
+        
+        return jsonify(result), status_code
     
-    result, status_code = AuthService.login_user(
-        User,
-        email=data['email'],
-        password=data['password']
-    )
-    
-    return jsonify(result), status_code
+    except Exception as e:
+        print(f"[ROUTE] Login error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required()

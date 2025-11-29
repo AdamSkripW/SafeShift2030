@@ -35,8 +35,10 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=1)
 
-# Initialize extensions
-db = SQLAlchemy(app)
+# ⭐ NOVÉ: Initialize extensions BEFORE defining models
+db = SQLAlchemy()
+db.init_app(app)
+
 jwt = JWTManager(app)
 CORS(app, origins=['http://localhost:4200', 'http://localhost:3000'])
 
@@ -121,7 +123,6 @@ def internal_error(error):
 # ============================================
 # IMPORT & REGISTER BLUEPRINTS
 # ============================================
-
 
 from safeshift.routes.auth import auth_bp
 from safeshift.routes.shifts import shifts_bp
