@@ -2,32 +2,32 @@ export type ShiftType = 'day' | 'night';
 export type Zone = 'green' | 'yellow' | 'red';
 
 export interface Shift {
-  shiftId?: number;
-  userId?: number;
-  shiftDate: string; // ISO date string
-  hoursSleptBefore: number; // 0-24
-  shiftType: ShiftType;
-  shiftLengthHours: number; // 1-24
-  patientsCount: number; // >= 0
-  stressLevel: number; // 1-10
-  shiftNote?: string;
+  ShiftId?: number;
+  UserId?: number;
+  ShiftDate: string; // ISO date string
+  HoursSleptBefore: number; // 0-24
+  ShiftType: ShiftType;
+  ShiftLengthHours: number; // 1-24
+  PatientsCount: number; // >= 0
+  StressLevel: number; // 1-10
+  ShiftNote?: string;
   
   // Computed by backend
-  safeShiftIndex?: number; // 0-100
-  zone?: Zone;
-  aiExplanation?: string;
-  aiTips?: string;
+  SafeShiftIndex?: number; // 0-100
+  Zone?: Zone;
+  AiExplanation?: string;
+  AiTips?: string;
   
-  createdAt?: string;
-  updatedAt?: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
 }
 
 export interface ShiftFormData {
-  shiftDate: string;
-  hoursSleptBefore: number;
-  shiftType: ShiftType;
-  shiftLengthHours: number;
-  patientsCount: number;
-  stressLevel: number;
-  shiftNote?: string;
+  ShiftDate: string;
+  HoursSleptBefore: number;
+  ShiftType: ShiftType;
+  ShiftLengthHours: number;
+  PatientsCount: number;
+  StressLevel: number;
+  ShiftNote?: string;
 }

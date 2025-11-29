@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, delay } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Shift, ShiftFormData } from '../models/shift.model';
+import { User } from '../models/user.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -9,7 +11,7 @@ import { environment } from '../../environments/environment';
 })
 export class ShiftService {
   private apiUrl = `${environment.apiUrl}/shifts`;
-  private useMockData = true; // Toggle this to switch between mock and real API
+  private useMockData = false; // Toggle this to switch between mock and real API
   private mockShifts: Shift[] = [];
   private nextId = 1;
 
@@ -20,130 +22,146 @@ export class ShiftService {
   }
 
   /**
+   * Get current user from localStorage
+   */
+  private getCurrentUser(): User | null {
+    const userJson = localStorage.getItem('currentUser');
+    if (userJson) {
+      try {
+        return JSON.parse(userJson) as User;
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Initialize mock data
    */
   private initializeMockData(): void {
     const today = new Date();
-    
+
     this.mockShifts = [
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -7),
-        hoursSleptBefore: 7,
-        shiftType: 'day',
-        shiftLengthHours: 8,
-        patientsCount: 12,
-        stressLevel: 4,
-        shiftNote: 'Smooth day, good team coordination',
-        safeShiftIndex: 35,
-        zone: 'green',
-        aiExplanation: 'Your SafeShift Index is in the green zone. You had adequate sleep (7 hours) and moderate workload. Keep maintaining this healthy balance.',
-        aiTips: '• Continue prioritizing 7-8 hours of sleep\n• Stay hydrated throughout your shift\n• Take regular breaks when possible',
-        createdAt: this.getDateString(today, -7),
-        updatedAt: this.getDateString(today, -7)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -7),
+        HoursSleptBefore: 7,
+        ShiftType: 'day',
+        ShiftLengthHours: 8,
+        PatientsCount: 12,
+        StressLevel: 4,
+        ShiftNote: 'Smooth day, good team coordination',
+        SafeShiftIndex: 35,
+        Zone: 'green',
+        AiExplanation: 'Your SafeShift Index is in the green zone. You had adequate sleep (7 hours) and moderate workload. Keep maintaining this healthy balance.',
+        AiTips: '• Continue prioritizing 7-8 hours of sleep\n• Stay hydrated throughout your shift\n• Take regular breaks when possible',
+        CreatedAt: this.getDateString(today, -7),
+        UpdatedAt: this.getDateString(today, -7)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -6),
-        hoursSleptBefore: 6,
-        shiftType: 'day',
-        shiftLengthHours: 10,
-        patientsCount: 15,
-        stressLevel: 6,
-        shiftNote: 'Busy day, short-staffed',
-        safeShiftIndex: 52,
-        zone: 'yellow',
-        aiExplanation: 'Your SafeShift Index is in the yellow zone. You had less sleep than ideal (6 hours) combined with a longer shift and higher patient load.',
-        aiTips: '• Try to get at least 7-8 hours of sleep tonight\n• Consider a 20-minute power nap if possible\n• Practice stress-relief techniques during breaks',
-        createdAt: this.getDateString(today, -6),
-        updatedAt: this.getDateString(today, -6)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -6),
+        HoursSleptBefore: 6,
+        ShiftType: 'day',
+        ShiftLengthHours: 10,
+        PatientsCount: 15,
+        StressLevel: 6,
+        ShiftNote: 'Busy day, short-staffed',
+        SafeShiftIndex: 52,
+        Zone: 'yellow',
+        AiExplanation: 'Your SafeShift Index is in the yellow zone. You had less sleep than ideal (6 hours) combined with a longer shift and higher patient load.',
+        AiTips: '• Try to get at least 7-8 hours of sleep tonight\n• Consider a 20-minute power nap if possible\n• Practice stress-relief techniques during breaks',
+        CreatedAt: this.getDateString(today, -6),
+        UpdatedAt: this.getDateString(today, -6)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -5),
-        hoursSleptBefore: 8,
-        shiftType: 'day',
-        shiftLengthHours: 8,
-        patientsCount: 10,
-        stressLevel: 3,
-        shiftNote: 'Great day, well-rested',
-        safeShiftIndex: 22,
-        zone: 'green',
-        aiExplanation: 'Excellent! Your SafeShift Index is in the green zone. You had great sleep (8 hours) and a manageable workload.',
-        aiTips: '• Maintain this sleep schedule\n• Keep up the good work-life balance\n• Share your wellness strategies with colleagues',
-        createdAt: this.getDateString(today, -5),
-        updatedAt: this.getDateString(today, -5)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -5),
+        HoursSleptBefore: 8,
+        ShiftType: 'day',
+        ShiftLengthHours: 8,
+        PatientsCount: 10,
+        StressLevel: 3,
+        ShiftNote: 'Great day, well-rested',
+        SafeShiftIndex: 22,
+        Zone: 'green',
+        AiExplanation: 'Excellent! Your SafeShift Index is in the green zone. You had great sleep (8 hours) and a manageable workload.',
+        AiTips: '• Maintain this sleep schedule\n• Keep up the good work-life balance\n• Share your wellness strategies with colleagues',
+        CreatedAt: this.getDateString(today, -5),
+        UpdatedAt: this.getDateString(today, -5)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -4),
-        hoursSleptBefore: 5,
-        shiftType: 'night',
-        shiftLengthHours: 12,
-        patientsCount: 18,
-        stressLevel: 8,
-        shiftNote: 'Difficult night shift, two critical patients',
-        safeShiftIndex: 73,
-        zone: 'red',
-        aiExplanation: 'Your SafeShift Index is in the red zone. You had insufficient sleep (5 hours) before a demanding 12-hour night shift with high stress levels.',
-        aiTips: '• Prioritize recovery sleep as soon as possible\n• Consider requesting time off if fatigue persists\n• Speak with your supervisor about workload concerns\n• Practice deep breathing exercises',
-        createdAt: this.getDateString(today, -4),
-        updatedAt: this.getDateString(today, -4)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -4),
+        HoursSleptBefore: 5,
+        ShiftType: 'night',
+        ShiftLengthHours: 12,
+        PatientsCount: 18,
+        StressLevel: 8,
+        ShiftNote: 'Difficult night shift, two critical patients',
+        SafeShiftIndex: 73,
+        Zone: 'red',
+        AiExplanation: 'Your SafeShift Index is in the red zone. You had insufficient sleep (5 hours) before a demanding 12-hour night shift with high stress levels.',
+        AiTips: '• Prioritize recovery sleep as soon as possible\n• Consider requesting time off if fatigue persists\n• Speak with your supervisor about workload concerns\n• Practice deep breathing exercises',
+        CreatedAt: this.getDateString(today, -4),
+        UpdatedAt: this.getDateString(today, -4)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -3),
-        hoursSleptBefore: 6.5,
-        shiftType: 'day',
-        shiftLengthHours: 9,
-        patientsCount: 14,
-        stressLevel: 5,
-        shiftNote: 'Recovery day after night shift',
-        safeShiftIndex: 48,
-        zone: 'yellow',
-        aiExplanation: 'Your SafeShift Index is in the yellow zone. You\'re recovering from the previous demanding shift, but still showing some fatigue.',
-        aiTips: '• Focus on quality sleep tonight\n• Eat nutritious meals to support recovery\n• Light exercise can help regulate your sleep cycle',
-        createdAt: this.getDateString(today, -3),
-        updatedAt: this.getDateString(today, -3)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -3),
+        HoursSleptBefore: 6.5,
+        ShiftType: 'day',
+        ShiftLengthHours: 9,
+        PatientsCount: 14,
+        StressLevel: 5,
+        ShiftNote: 'Recovery day after night shift',
+        SafeShiftIndex: 48,
+        Zone: 'yellow',
+        AiExplanation: 'Your SafeShift Index is in the yellow zone. You\'re recovering from the previous demanding shift, but still showing some fatigue.',
+        AiTips: '• Focus on quality sleep tonight\n• Eat nutritious meals to support recovery\n• Light exercise can help regulate your sleep cycle',
+        CreatedAt: this.getDateString(today, -3),
+        UpdatedAt: this.getDateString(today, -3)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -2),
-        hoursSleptBefore: 7.5,
-        shiftType: 'day',
-        shiftLengthHours: 8,
-        patientsCount: 11,
-        stressLevel: 4,
-        shiftNote: 'Feeling better, good sleep',
-        safeShiftIndex: 38,
-        zone: 'green',
-        aiExplanation: 'Back in the green zone! Your recovery sleep helped, and you had a more manageable shift.',
-        aiTips: '• Continue this positive trend\n• Maintain consistent sleep schedule\n• Stay connected with your support network',
-        createdAt: this.getDateString(today, -2),
-        updatedAt: this.getDateString(today, -2)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -2),
+        HoursSleptBefore: 7.5,
+        ShiftType: 'day',
+        ShiftLengthHours: 8,
+        PatientsCount: 11,
+        StressLevel: 4,
+        ShiftNote: 'Feeling better, good sleep',
+        SafeShiftIndex: 38,
+        Zone: 'green',
+        AiExplanation: 'Back in the green zone! Your recovery sleep helped, and you had a more manageable shift.',
+        AiTips: '• Continue this positive trend\n• Maintain consistent sleep schedule\n• Stay connected with your support network',
+        CreatedAt: this.getDateString(today, -2),
+        UpdatedAt: this.getDateString(today, -2)
       },
       {
-        shiftId: this.nextId++,
-        userId: 1,
-        shiftDate: this.getDateString(today, -1),
-        hoursSleptBefore: 7,
-        shiftType: 'day',
-        shiftLengthHours: 8,
-        patientsCount: 13,
-        stressLevel: 5,
-        shiftNote: 'Normal day',
-        safeShiftIndex: 42,
-        zone: 'yellow',
-        aiExplanation: 'Your SafeShift Index is in the yellow zone. Adequate sleep but moderate stress levels.',
-        aiTips: '• Monitor your stress levels\n• Practice mindfulness during breaks\n• Ensure you\'re taking all scheduled breaks',
-        createdAt: this.getDateString(today, -1),
-        updatedAt: this.getDateString(today, -1)
+        ShiftId: this.nextId++,
+        UserId: 1,
+        ShiftDate: this.getDateString(today, -1),
+        HoursSleptBefore: 7,
+        ShiftType: 'day',
+        ShiftLengthHours: 8,
+        PatientsCount: 13,
+        StressLevel: 5,
+        ShiftNote: 'Normal day',
+        SafeShiftIndex: 42,
+        Zone: 'yellow',
+        AiExplanation: 'Your SafeShift Index is in the yellow zone. Adequate sleep but moderate stress levels.',
+        AiTips: '• Monitor your stress levels\n• Practice mindfulness during breaks\n• Ensure you\'re taking all scheduled breaks',
+        CreatedAt: this.getDateString(today, -1),
+        UpdatedAt: this.getDateString(today, -1)
       }
     ];
   }
@@ -162,34 +180,34 @@ export class ShiftService {
    */
   private calculateSafeShiftIndex(shift: ShiftFormData): { index: number; zone: 'green' | 'yellow' | 'red' } {
     let index = 0;
-    
+
     // Sleep factor (0-30 points)
-    if (shift.hoursSleptBefore < 5) index += 30;
-    else if (shift.hoursSleptBefore < 6) index += 20;
-    else if (shift.hoursSleptBefore < 7) index += 10;
+    if (shift.HoursSleptBefore < 5) index += 30;
+    else if (shift.HoursSleptBefore < 6) index += 20;
+    else if (shift.HoursSleptBefore < 7) index += 10;
     else index += 5;
-    
+
     // Shift length factor (0-20 points)
-    if (shift.shiftLengthHours > 10) index += 20;
-    else if (shift.shiftLengthHours > 8) index += 10;
+    if (shift.ShiftLengthHours > 10) index += 20;
+    else if (shift.ShiftLengthHours > 8) index += 10;
     else index += 5;
-    
+
     // Night shift factor (0-15 points)
-    if (shift.shiftType === 'night') index += 15;
-    
+    if (shift.ShiftType === 'night') index += 15;
+
     // Stress factor (0-25 points)
-    index += Math.round((shift.stressLevel / 10) * 25);
-    
+    index += Math.round((shift.StressLevel / 10) * 25);
+
     // Patient load factor (0-10 points)
-    if (shift.patientsCount > 15) index += 10;
-    else if (shift.patientsCount > 10) index += 5;
-    
+    if (shift.PatientsCount > 15) index += 10;
+    else if (shift.PatientsCount > 10) index += 5;
+
     // Determine zone
     let zone: 'green' | 'yellow' | 'red';
     if (index < 40) zone = 'green';
     else if (index < 60) zone = 'yellow';
     else zone = 'red';
-    
+
     return { index, zone };
   }
 
@@ -197,10 +215,10 @@ export class ShiftService {
    * Generate AI explanation (mock)
    */
   private generateAIExplanation(shift: ShiftFormData, index: number, zone: string): string {
-    const sleepQuality = shift.hoursSleptBefore >= 7 ? 'adequate' : shift.hoursSleptBefore >= 6 ? 'moderate' : 'insufficient';
-    const stressLevel = shift.stressLevel >= 7 ? 'high' : shift.stressLevel >= 4 ? 'moderate' : 'low';
-    
-    return `Your SafeShift Index is in the ${zone} zone (${index}/100). You had ${sleepQuality} sleep (${shift.hoursSleptBefore} hours) before a ${shift.shiftLengthHours}-hour ${shift.shiftType} shift with ${stressLevel} stress levels.`;
+    const sleepQuality = shift.HoursSleptBefore >= 7 ? 'adequate' : shift.HoursSleptBefore >= 6 ? 'moderate' : 'insufficient';
+    const stressLevel = shift.StressLevel >= 7 ? 'high' : shift.StressLevel >= 4 ? 'moderate' : 'low';
+
+    return `Your SafeShift Index is in the ${zone} zone (${index}/100). You had ${sleepQuality} sleep (${shift.HoursSleptBefore} hours) before a ${shift.ShiftLengthHours}-hour ${shift.ShiftType} shift with ${stressLevel} stress levels.`;
   }
 
   /**
@@ -222,23 +240,36 @@ export class ShiftService {
   createShift(shiftData: ShiftFormData): Observable<Shift> {
     if (this.useMockData) {
       const { index, zone } = this.calculateSafeShiftIndex(shiftData);
-      
+
       const newShift: Shift = {
-        shiftId: this.nextId++,
-        userId: 1,
+        ShiftId: this.nextId++,
+        UserId: 1,
         ...shiftData,
-        safeShiftIndex: index,
-        zone: zone,
-        aiExplanation: this.generateAIExplanation(shiftData, index, zone),
-        aiTips: this.generateAITips(zone),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        SafeShiftIndex: index,
+        Zone: zone,
+        AiExplanation: this.generateAIExplanation(shiftData, index, zone),
+        AiTips: this.generateAITips(zone),
+        CreatedAt: new Date().toISOString(),
+        UpdatedAt: new Date().toISOString()
       };
-      
+
       this.mockShifts.unshift(newShift);
       return of(newShift).pipe(delay(500)); // Simulate network delay
     }
-    return this.http.post<Shift>(this.apiUrl, shiftData);
+
+    // Get current user ID from localStorage
+    const currentUser = this.getCurrentUser();
+    if (!currentUser || !currentUser.UserId) {
+      throw new Error('No authenticated user found');
+    }
+
+    // Add UserId to shift data
+    const shiftWithUserId = {
+      ...shiftData,
+      UserId: currentUser.UserId
+    };
+
+    return this.http.post<Shift>(this.apiUrl, shiftWithUserId);
   }
 
   /**
@@ -248,7 +279,36 @@ export class ShiftService {
     if (this.useMockData) {
       return of([...this.mockShifts]).pipe(delay(300));
     }
-    return this.http.get<Shift[]>(this.apiUrl);
+
+    // Get current user ID from localStorage
+    const currentUser = this.getCurrentUser();
+    if (!currentUser || !currentUser.UserId) {
+      console.warn('No authenticated user found');
+      return of([]);
+    }
+
+    // Add user_id query parameter
+    return this.http.get<any>(this.apiUrl, {
+      params: { user_id: currentUser.UserId.toString() }
+    }).pipe(
+      map(response => {
+        // Handle both array and object responses
+        if (Array.isArray(response)) {
+          return response;
+        }
+        // If response is an object with a shifts property
+        if (response && response.shifts && Array.isArray(response.shifts)) {
+          return response.shifts;
+        }
+        // If response is an object with a data property
+        if (response && response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        // Fallback to empty array
+        console.warn('Unexpected API response format:', response);
+        return [];
+      })
+    );
   }
 
   /**
@@ -256,7 +316,7 @@ export class ShiftService {
    */
   getShiftById(shiftId: number): Observable<Shift> {
     if (this.useMockData) {
-      const shift = this.mockShifts.find(s => s.shiftId === shiftId);
+      const shift = this.mockShifts.find(s => s.ShiftId === shiftId);
       return of(shift!).pipe(delay(200));
     }
     return this.http.get<Shift>(`${this.apiUrl}/${shiftId}`);
@@ -267,7 +327,7 @@ export class ShiftService {
    */
   updateShift(shiftId: number, shiftData: Partial<ShiftFormData>): Observable<Shift> {
     if (this.useMockData) {
-      const index = this.mockShifts.findIndex(s => s.shiftId === shiftId);
+      const index = this.mockShifts.findIndex(s => s.ShiftId === shiftId);
       if (index !== -1) {
         this.mockShifts[index] = { ...this.mockShifts[index], ...shiftData };
         return of(this.mockShifts[index]).pipe(delay(300));
@@ -281,7 +341,7 @@ export class ShiftService {
    */
   deleteShift(shiftId: number): Observable<void> {
     if (this.useMockData) {
-      const index = this.mockShifts.findIndex(s => s.shiftId === shiftId);
+      const index = this.mockShifts.findIndex(s => s.ShiftId === shiftId);
       if (index !== -1) {
         this.mockShifts.splice(index, 1);
       }
@@ -296,13 +356,28 @@ export class ShiftService {
   getShiftsByDateRange(startDate: string, endDate: string): Observable<Shift[]> {
     if (this.useMockData) {
       const filtered = this.mockShifts.filter(shift => {
-        return shift.shiftDate >= startDate && shift.shiftDate <= endDate;
+        return shift.ShiftDate >= startDate && shift.ShiftDate <= endDate;
       });
       return of(filtered).pipe(delay(300));
     }
-    return this.http.get<Shift[]>(`${this.apiUrl}/range`, {
+    return this.http.get<any>(`${this.apiUrl}/range`, {
       params: { startDate, endDate }
-    });
+    }).pipe(
+      map(response => {
+        // Handle both array and object responses
+        if (Array.isArray(response)) {
+          return response;
+        }
+        if (response && response.shifts && Array.isArray(response.shifts)) {
+          return response.shifts;
+        }
+        if (response && response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        console.warn('Unexpected API response format:', response);
+        return [];
+      })
+    );
   }
 
   /**

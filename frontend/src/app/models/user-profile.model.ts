@@ -1,5 +1,5 @@
 export interface UserProfile {
-  fullName: string;
-  role: 'Nurse' | 'Doctor' | 'Medical Student';
-  department: string;
+  FullName: string;
+  Role: 'Nurse' | 'Doctor' | 'Medical Student';
+  Department: string;
 }

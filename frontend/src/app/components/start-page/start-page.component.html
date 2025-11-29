@@ -1,69 +1,217 @@
 <div class="start-page-container">
-  <div class="content-wrapper">
-    <header class="page-header">
-      <h1>Welcome to SafeShift 2030</h1>
-      <p class="subtitle">Let's get started with your basic information</p>
-    </header>
-
-    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form">
-      <!-- Full Name Field -->
-      <div class="form-group">
-        <label for="fullName" class="form-label">Full Name *</label>
-        <input
-          type="text"
-          id="fullName"
-          formControlName="fullName"
-          class="form-input"
-          [class.invalid]="submitted && f['fullName'].errors"
-          placeholder="Enter your full name"
-          autocomplete="name"
-        />
-        <div class="error-message" *ngIf="submitted && f['fullName'].errors">
-          <span *ngIf="f['fullName'].errors['required']">Full name is required</span>
-          <span *ngIf="f['fullName'].errors['minlength']">Name must be at least 2 characters</span>
-        </div>
-      </div>
-
-      <!-- Role Field -->
-      <div class="form-group">
-        <label for="role" class="form-label">Role *</label>
-        <select
-          id="role"
-          formControlName="role"
-          class="form-input"
-          [class.invalid]="submitted && f['role'].errors"
-        >
-          <option value="" disabled>Select your role</option>
-          <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
-        </select>
-        <div class="error-message" *ngIf="submitted && f['role'].errors">
-          <span *ngIf="f['role'].errors['required']">Role is required</span>
-        </div>
-      </div>
-
-      <!-- Department Field -->
-      <div class="form-group">
-        <label for="department" class="form-label">Department *</label>
-        <select
-          id="department"
-          formControlName="department"
-          class="form-input"
-          [class.invalid]="submitted && f['department'].errors"
-        >
-          <option value="" disabled>Select your department</option>
-          <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
-        </select>
-        <div class="error-message" *ngIf="submitted && f['department'].errors">
-          <span *ngIf="f['department'].errors['required']">Department is required</span>
-        </div>
-      </div>
-
-      <!-- Submit Button -->
-      <div class="form-actions">
-        <button type="submit" class="btn-primary">
-          Save &amp; Continue
+  <!-- Hero Section -->
+  <div class="hero-section">
+    <div class="hero-content">
+      <h1 class="hero-title">SafeShift 2030</h1>
+      <p class="hero-subtitle">Intelligent Shift Management for Healthcare Professionals</p>
+      <p class="hero-description">
+        Track your shifts, monitor burnout risk, and optimize your work-life balance with AI-powered insights.
+      </p>
+      <div class="hero-actions">
+        <button class="btn-primary-large" (click)="openModal('register')">
+          Get Started
+        </button>
+        <button class="btn-secondary-large" (click)="openModal('login')">
+          Sign In
         </button>
       </div>
-    </form>
+    </div>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <button class="modal-close" (click)="closeModal()">&times;</button>
+
+      <!-- Modal Header with Tabs -->
+      <div class="modal-header">
+        <button
+          class="tab-button"
+          [class.active]="modalMode === 'login'"
+          (click)="switchMode('login')">
+          Sign In
+        </button>
+        <button
+          class="tab-button"
+          [class.active]="modalMode === 'register'"
+          (click)="switchMode('register')">
+          Register
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <div class="modal-body" *ngIf="modalMode === 'login'">
+        <h2 class="modal-title">Welcome Back</h2>
+        <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="auth-form">
+          <div class="form-group">
+            <label for="loginEmail" class="form-label">Email</label>
+            <input
+              type="email"
+              id="loginEmail"
+              formControlName="email"
+              class="form-input"
+              [class.invalid]="loginSubmitted && lf['email'].errors"
+              placeholder="Enter your email"
+              autocomplete="email"
+            />
+            <div class="error-message" *ngIf="loginSubmitted && lf['email'].errors">
+              <span *ngIf="lf['email'].errors['required']">Email is required</span>
+              <span *ngIf="lf['email'].errors['email']">Please enter a valid email</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword" class="form-label">Password</label>
+            <input
+              type="password"
+              id="loginPassword"
+              formControlName="password"
+              class="form-input"
+              [class.invalid]="loginSubmitted && lf['password'].errors"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+            />
+            <div class="error-message" *ngIf="loginSubmitted && lf['password'].errors">
+              <span *ngIf="lf['password'].errors['required']">Password is required</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary btn-full">
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <!-- Register Form -->
+      <div class="modal-body" *ngIf="modalMode === 'register'">
+        <h2 class="modal-title">Create Account</h2>
+        <form [formGroup]="registerForm" (ngSubmit)="onRegister()" class="auth-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firstName" class="form-label">First Name</label>
+              <input
+                type="text"
+                id="firstName"
+                formControlName="firstName"
+                class="form-input"
+                [class.invalid]="registerSubmitted && rf['firstName'].errors"
+                placeholder="First name"
+                autocomplete="given-name"
+              />
+              <div class="error-message" *ngIf="registerSubmitted && rf['firstName'].errors">
+                <span *ngIf="rf['firstName'].errors['required']">Required</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="lastName" class="form-label">Last Name</label>
+              <input
+                type="text"
+                id="lastName"
+                formControlName="lastName"
+                class="form-input"
+                [class.invalid]="registerSubmitted && rf['lastName'].errors"
+                placeholder="Last name"
+                autocomplete="family-name"
+              />
+              <div class="error-message" *ngIf="registerSubmitted && rf['lastName'].errors">
+                <span *ngIf="rf['lastName'].errors['required']">Required</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="registerEmail" class="form-label">Email</label>
+            <input
+              type="email"
+              id="registerEmail"
+              formControlName="email"
+              class="form-input"
+              [class.invalid]="registerSubmitted && rf['email'].errors"
+              placeholder="Enter your email"
+              autocomplete="email"
+            />
+            <div class="error-message" *ngIf="registerSubmitted && rf['email'].errors">
+              <span *ngIf="rf['email'].errors['required']">Email is required</span>
+              <span *ngIf="rf['email'].errors['email']">Please enter a valid email</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="registerPassword" class="form-label">Password</label>
+            <input
+              type="password"
+              id="registerPassword"
+              formControlName="password"
+              class="form-input"
+              [class.invalid]="registerSubmitted && rf['password'].errors"
+              placeholder="At least 6 characters"
+              autocomplete="new-password"
+            />
+            <div class="error-message" *ngIf="registerSubmitted && rf['password'].errors">
+              <span *ngIf="rf['password'].errors['required']">Password is required</span>
+              <span *ngIf="rf['password'].errors['minlength']">At least 6 characters</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="role" class="form-label">Role</label>
+              <select
+                id="role"
+                formControlName="role"
+                class="form-input"
+                [class.invalid]="registerSubmitted && rf['role'].errors"
+              >
+                <option value="" disabled>Select role</option>
+                <option *ngFor="let role of roles" [value]="role.value">{{ role.label }}</option>
+              </select>
+              <div class="error-message" *ngIf="registerSubmitted && rf['role'].errors">
+                <span *ngIf="rf['role'].errors['required']">Required</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="department" class="form-label">Department</label>
+              <select
+                id="department"
+                formControlName="department"
+                class="form-input"
+                [class.invalid]="registerSubmitted && rf['department'].errors"
+              >
+                <option value="" disabled>Select department</option>
+                <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+              </select>
+              <div class="error-message" *ngIf="registerSubmitted && rf['department'].errors">
+                <span *ngIf="rf['department'].errors['required']">Required</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="hospitalId" class="form-label">Hospital</label>
+            <select
+              id="hospitalId"
+              formControlName="hospitalId"
+              class="form-input"
+              [class.invalid]="registerSubmitted && rf['hospitalId'].errors"
+              [disabled]="loadingHospitals"
+            >
+              <option value="" disabled>{{ loadingHospitals ? 'Loading...' : 'Select hospital' }}</option>
+              <option *ngFor="let hospital of hospitals" [value]="hospital.HospitalId">
+                {{ hospital.Name }} - {{ hospital.City }}
+              </option>
+            </select>
+            <div class="error-message" *ngIf="registerSubmitted && rf['hospitalId'].errors">
+              <span *ngIf="rf['hospitalId'].errors['required']">Hospital is required</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary btn-full">
+            Create Account
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>

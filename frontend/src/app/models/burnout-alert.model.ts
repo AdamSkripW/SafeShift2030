@@ -2,12 +2,12 @@ export type AlertType = 'chronic_low_sleep' | 'consecutive_nights' | 'high_stres
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export interface BurnoutAlert {
-  alertId?: number;
-  userId: number;
-  alertType: AlertType;
-  severity: AlertSeverity;
-  description?: string;
-  isResolved: boolean;
-  createdAt?: string;
-  resolvedAt?: string;
+  AlertId?: number;
+  UserId: number;
+  AlertType: AlertType;
+  Severity: AlertSeverity;
+  Description?: string;
+  IsResolved: boolean;
+  CreatedAt?: string;
+  ResolvedAt?: string;
 }
