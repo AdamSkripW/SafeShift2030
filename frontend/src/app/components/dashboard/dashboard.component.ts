@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { NavbarComponent } from '../../components/navbar/navbar.component';
@@ -38,7 +38,8 @@ export class DashboardComponent implements OnInit {
   constructor(
     private shiftService: ShiftService,
     private userProfileService: UserProfileService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -46,7 +47,7 @@ export class DashboardComponent implements OnInit {
     
     // If no user profile, redirect to start page
     if (!this.userProfile) {
-      console.log('No user profile found, redirecting to start page');
+      this.loading = false; // Stop loading before redirect
       this.router.navigate(['/start']);
       return;
     }
@@ -61,8 +62,10 @@ export class DashboardComponent implements OnInit {
     this.loading = true;
     this.errorMessage = '';
 
+    console.log('Loading dashboard data...');
     this.shiftService.getUserShifts().subscribe({
       next: (shifts) => {
+        console.log('Received shifts:', shifts.length);
         this.recentShifts = shifts
           .sort((a, b) => new Date(b.shiftDate).getTime() - new Date(a.shiftDate).getTime())
           .slice(0, 7); // Last 7 shifts
@@ -71,6 +74,8 @@ export class DashboardComponent implements OnInit {
         this.prepareStressData(this.recentShifts);
         this.latestShift = this.recentShifts.length > 0 ? this.recentShifts[0] : null;
         this.loading = false;
+        console.log('Dashboard loaded, loading =', this.loading);
+        this.cdr.detectChanges(); // Manually trigger change detection
       },
       error: (error) => {
         console.error('Error loading dashboard data:', error);
