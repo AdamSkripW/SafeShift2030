@@ -1,4 +1,56 @@
 /* Global styles */
+:root {
+  /* Light mode colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --bg-tertiary: #f7fafc;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-tertiary: #718096;
+  --border-color: #e2e8f0;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-hover: rgba(0, 0, 0, 0.15);
+  
+  /* Brand colors */
+  --primary: #4299e1;
+  --primary-hover: #3182ce;
+  --primary-dark: #2c5282;
+  
+  /* Status colors */
+  --success: #48bb78;
+  --warning: #ecc94b;
+  --error: #f56565;
+  
+  /* Zone colors */
+  --zone-green-bg: #c6f6d5;
+  --zone-green-text: #22543d;
+  --zone-yellow-bg: #fef5e7;
+  --zone-yellow-text: #744210;
+  --zone-red-bg: #fed7d7;
+  --zone-red-text: #742a2a;
+}
+
+/* Dark mode colors */
+.dark-mode {
+  --bg-primary: #1a202c;
+  --bg-secondary: #2d3748;
+  --bg-tertiary: #4a5568;
+  --text-primary: #f7fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e0;
+  --border-color: #4a5568;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-hover: rgba(0, 0, 0, 0.4);
+  
+  /* Zone colors for dark mode */
+  --zone-green-bg: #22543d;
+  --zone-green-text: #c6f6d5;
+  --zone-yellow-bg: #744210;
+  --zone-yellow-text: #fef5e7;
+  --zone-red-bg: #742a2a;
+  --zone-red-text: #fed7d7;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -8,5 +60,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.6;
-  color: #333;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

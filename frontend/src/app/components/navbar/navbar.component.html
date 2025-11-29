@@ -26,6 +26,9 @@
 
     <!-- User Profile -->
     <div class="navbar-user" *ngIf="userProfile">
+      <button class="theme-toggle-btn" (click)="toggleTheme()" [title]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+        {{ isDarkMode ? '☀️' : '🌙' }}
+      </button>
       <div class="user-info">
         <span class="user-name">{{ userProfile.fullName }}</span>
         <span class="user-role">{{ userProfile.role }}</span>
@@ -60,9 +63,14 @@
         <span class="user-name">{{ userProfile.fullName }}</span>
         <span class="user-role">{{ userProfile.role }} • {{ userProfile.department }}</span>
       </div>
-      <button class="logout-btn-mobile" (click)="logout()">
-        Logout
-      </button>
+      <div class="mobile-actions">
+        <button class="theme-toggle-btn-mobile" (click)="toggleTheme()">
+          {{ isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode' }}
+        </button>
+        <button class="logout-btn-mobile" (click)="logout()">
+          Logout
+        </button>
+      </div>
     </div>
   </div>
 </nav>
