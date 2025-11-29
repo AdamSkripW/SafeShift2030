@@ -385,30 +385,30 @@ def create_shift():
         shift_date = datetime.strptime(data['ShiftDate'], '%Y-%m-%d').date()
         
         # Calculate SafeShift Index
-        index_result = SafeShiftService.calculate_index(
+        safe_shift_index, zone = SafeShiftService.calculate_index(
             hours_slept=data['HoursSleptBefore'],
             shift_type=data['ShiftType'],
             shift_length=data['ShiftLengthHours'],
-            patient_count=data['PatientsCount'],
+            patients_count=data['PatientsCount'],
             stress_level=data['StressLevel']
         )
         
         # Generate AI insights for high-risk shifts (optional)
         ai_explanation = None
         ai_tips = None
-        if index_result['zone'] == 'red':
+        if zone == 'red':
             try:
                 insights = LLMService.generate_insights(
                     shift_data={
                         'hours_slept': data['HoursSleptBefore'],
                         'shift_type': data['ShiftType'],
                         'shift_length': data['ShiftLengthHours'],
-                        'patient_count': data['PatientsCount'],
+                        'patients_count': data['PatientsCount'],
                         'stress_level': data['StressLevel'],
                         'shift_note': data.get('ShiftNote', '')
                     },
-                    index=index_result['index'],
-                    zone=index_result['zone']
+                    index=safe_shift_index,
+                    zone=zone
                 )
                 ai_explanation = insights.get('explanation')
                 ai_tips = insights.get('tips')
@@ -425,8 +425,8 @@ def create_shift():
             PatientsCount=data['PatientsCount'],
             StressLevel=data['StressLevel'],
             ShiftNote=data.get('ShiftNote'),
-            SafeShiftIndex=index_result['index'],
-            Zone=index_result['zone'],
+            SafeShiftIndex=safe_shift_index,
+            Zone=zone,
             AiExplanation=ai_explanation,
             AiTips=ai_tips
         )
@@ -494,30 +494,30 @@ def update_shift(shift_id):
         
         # Recalculate SafeShift Index if relevant fields changed
         if recalculate:
-            index_result = SafeShiftService.calculate_index(
+            safe_shift_index, zone = SafeShiftService.calculate_index(
                 hours_slept=shift.HoursSleptBefore,
                 shift_type=shift.ShiftType,
                 shift_length=shift.ShiftLengthHours,
-                patient_count=shift.PatientsCount,
+                patients_count=shift.PatientsCount,
                 stress_level=shift.StressLevel
             )
-            shift.SafeShiftIndex = index_result['index']
-            shift.Zone = index_result['zone']
+            shift.SafeShiftIndex = safe_shift_index
+            shift.Zone = zone
             
             # Update AI insights for high-risk shifts
-            if index_result['zone'] == 'red':
+            if zone == 'red':
                 try:
                     insights = LLMService.generate_insights(
                         shift_data={
                             'hours_slept': shift.HoursSleptBefore,
                             'shift_type': shift.ShiftType,
                             'shift_length': shift.ShiftLengthHours,
-                            'patient_count': shift.PatientsCount,
+                            'patients_count': shift.PatientsCount,
                             'stress_level': shift.StressLevel,
                             'shift_note': shift.ShiftNote or ''
                         },
-                        index=index_result['index'],
-                        zone=index_result['zone']
+                        index=safe_shift_index,
+                        zone=zone
                     )
                     shift.AiExplanation = insights.get('explanation')
                     shift.AiTips = insights.get('tips')

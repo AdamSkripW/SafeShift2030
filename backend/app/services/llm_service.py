@@ -39,7 +39,121 @@ CONSTRAINTS:
 - Use simple language anyone can understand after a 12-hour shift"""
     
     # ============================================
-    # Generate AI Explanation
+    # Generate Combined Insights (Explanation + Tips)
+    # ============================================
+    
+    @staticmethod
+    def generate_insights(shift_data, index, zone):
+        """
+        Generate combined AI insights (explanation + tips) for a shift
+        Static method for easy use in routes
+        
+        Args:
+            shift_data: dict with keys: hours_slept, shift_type, shift_length, 
+                        patients_count, stress_level, shift_note
+            index: SafeShift Index (0-100)
+            zone: Risk zone (green, yellow, red)
+        
+        Returns:
+            dict: {'explanation': str, 'tips': str}
+        """
+        llm = LLMService()
+        
+        if not llm.enabled:
+            return {
+                'explanation': f"SafeShift Index: {index} ({zone} zone). Please prioritize rest.",
+                'tips': "• Rest and recover\n• Stay hydrated\n• Reach out for support"
+            }
+        
+        # Generate both explanation and tips
+        explanation = llm._generate_simple_explanation(
+            index=index,
+            zone=zone,
+            hours_slept=shift_data.get('hours_slept', 0),
+            shift_type=shift_data.get('shift_type', 'day'),
+            shift_length=shift_data.get('shift_length', 8),
+            patients_count=shift_data.get('patients_count', 0),
+            stress_level=shift_data.get('stress_level', 5),
+            shift_note=shift_data.get('shift_note', '')
+        )
+        
+        tips = llm._generate_simple_tips(
+            zone=zone,
+            hours_slept=shift_data.get('hours_slept', 0),
+            shift_type=shift_data.get('shift_type', 'day'),
+            shift_length=shift_data.get('shift_length', 8),
+            stress_level=shift_data.get('stress_level', 5)
+        )
+        
+        return {
+            'explanation': explanation,
+            'tips': tips
+        }
+    
+    def _generate_simple_explanation(self, index, zone, hours_slept, shift_type, shift_length, patients_count, stress_level, shift_note=""):
+        """Internal method to generate explanation without user info"""
+        if not self.enabled:
+            return f"SafeShift Index: {index} ({zone} zone). Please prioritize rest."
+        
+        prompt = f"""Generate a SHORT explanation (2-3 sentences) for why this SafeShift Index is in the {zone.upper()} zone.
+
+SafeShift Index: {index} ({zone.upper()} ZONE)
+
+Shift factors:
+- Slept {hours_slept} hours before shift
+- {shift_type.capitalize()} shift, {shift_length} hours
+- {patients_count} patients
+- Stress level: {stress_level}/10
+- Note: "{shift_note if shift_note else 'N/A'}"
+
+Explain the key risk factors briefly."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_MESSAGE},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"[LLM] Error in generate explanation: {str(e)}")
+            return f"SafeShift Index: {index} ({zone} zone). Key factors: {hours_slept}h sleep, {shift_length}h {shift_type} shift."
+    
+    def _generate_simple_tips(self, zone, hours_slept, shift_type, shift_length, stress_level):
+        """Internal method to generate tips without user info"""
+        if not self.enabled:
+            return "• Rest and recover\n• Stay hydrated\n• Reach out for support"
+        
+        prompt = f"""Generate 3-4 SHORT recovery tips (bullet points) for a healthcare worker after this {zone.upper()} zone shift.
+
+Context:
+- {shift_length}-hour {shift_type} shift
+- Slept {hours_slept} hours before
+- Stress level {stress_level}/10
+
+Focus on immediate, practical actions. Each tip: 1 sentence. Make them DOABLE today."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_MESSAGE},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=250,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"[LLM] Error in generate tips: {str(e)}")
+            return "• Rest and recover\n• Stay hydrated\n• Reach out for support"
+    
+    # ============================================
+    # Generate AI Explanation (Original method with user info)
     # ============================================
     
     def generate_explanation(self, first_name, role, index, zone, hours_slept, shift_type, shift_length, patients_count, stress_level, shift_note=""):
