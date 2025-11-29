@@ -13,7 +13,11 @@ def create_app(config_name='development'):
     # Initialize CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:4200", "http://localhost:4200/*"],
+            "origins": [
+                "http://localhost:4200",
+                "http://localhost:4200/*",
+                "https://victorious-tree-06f6b3803.3.azurestaticapps.net"
+            ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "expose_headers": ["Content-Type", "Authorization"],
