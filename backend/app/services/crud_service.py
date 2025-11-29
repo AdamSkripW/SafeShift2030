@@ -1,4 +1,10 @@
+"""
+CRUD Service - Basic CRUD operations for all models
+Handles: Hospitals, Users, Admins, Shifts, TimeOff, Alerts, Sessions
+"""
+
 from app.models import db, User, Hospital, HospitalAdmin, Shift, TimeOffRequest, BurnoutAlert, Session
+
 
 class HospitalService:
     """Service layer for Hospital operations"""
@@ -37,6 +43,7 @@ class HospitalService:
         db.session.delete(hospital)
         db.session.commit()
         return True
+
 
 class UserService:
     """Service layer for User operations"""
@@ -89,6 +96,7 @@ class UserService:
         db.session.commit()
         return True
 
+
 class ShiftService:
     """Service layer for Shift operations"""
     
@@ -140,6 +148,7 @@ class ShiftService:
         db.session.commit()
         return True
 
+
 class TimeOffService:
     """Service layer for TimeOff operations"""
     
@@ -174,6 +183,7 @@ class TimeOffService:
                 setattr(timeoff, key, value)
         db.session.commit()
         return timeoff
+
 
 class BurnoutAlertService:
     """Service layer for BurnoutAlert operations"""
