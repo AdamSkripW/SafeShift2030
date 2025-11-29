@@ -83,9 +83,11 @@ def refresh():
     from flask_jwt_extended import create_access_token
     from datetime import timedelta
     
-    user_id = get_jwt_identity()
+    user_id = get_jwt_identity()  # ← Toto je už string
+    
+    # ✅ Priamo použi, je to string
     new_token = create_access_token(
-        identity=user_id,
+        identity=user_id,  # ← Už je string, netreba convertovať
         expires_delta=timedelta(days=1)
     )
     return jsonify({

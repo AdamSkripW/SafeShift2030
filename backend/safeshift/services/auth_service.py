@@ -76,9 +76,9 @@ class AuthService:
             
             print(f"[LOGIN] Password correct, generating token...")
             
-            # Create JWT token
+            # Create JWT token - ✅ CONVERT TO STRING
             access_token = create_access_token(
-                identity=user.UserId,
+                identity=str(user.UserId),  # ← TOTO!
                 expires_delta=timedelta(days=1)
             )
             
