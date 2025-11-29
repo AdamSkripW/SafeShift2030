@@ -88,7 +88,7 @@ jobs:
     needs: [check-changes, build-frontend]
     if: |
       always() &&
-      needs.check-changes.outputs.frontend == 'true' &&
+      needs.check-changes.outputs.frontend == 'false' &&
       needs.build-frontend.result == 'success'
     permissions:
       contents: read
