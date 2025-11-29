@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { NavbarComponent } from '../../components/navbar/navbar.component';
@@ -20,7 +20,8 @@ export class ShiftsDashboardComponent implements OnInit {
 
   constructor(
     private shiftService: ShiftService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -41,11 +42,13 @@ export class ShiftsDashboardComponent implements OnInit {
         });
         this.latestShift = this.shifts.length > 0 ? this.shifts[0] : null;
         this.loading = false;
+        this.cdr.detectChanges(); // Manually trigger change detection
       },
       error: (error) => {
         console.error('Error loading shifts:', error);
         this.errorMessage = 'Failed to load shifts. Please try again.';
         this.loading = false;
+        this.cdr.detectChanges();
       }
     });
   }

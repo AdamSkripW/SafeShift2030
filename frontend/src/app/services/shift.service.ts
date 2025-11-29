@@ -14,7 +14,9 @@ export class ShiftService {
   private nextId = 1;
 
   constructor(private http: HttpClient) {
-    this.initializeMockData();
+    if (this.useMockData && this.mockShifts.length === 0) {
+      this.initializeMockData();
+    }
   }
 
   /**
