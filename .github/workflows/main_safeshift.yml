@@ -1,38 +1,16 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-name: Build and deploy to Azure Web App - safeshift
+name: Build and deploy Backend to Azure Web App - safeshift
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/main_safeshift.yml'
   workflow_dispatch:
 
 jobs:
-  build-frontend:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js version
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          npm install
-          npm run build
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
-
   build-backend:
     runs-on: ubuntu-latest
     permissions:
@@ -61,34 +39,6 @@ jobs:
             backend
             !backend/antenv/
 
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    needs: build-frontend
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8C199EEC6C3447BE91D5226D7FE2BE87 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_32E873D0EBE5465D92F4CA1DA64CC966 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_9E9BE7AF241A4C0F8CDB9A5CC94EF227 }}
-
-      - name: Deploy frontend to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'safeshift'
-          slot-name: 'Production'
-          package: dist
-
   deploy-backend:
     runs-on: ubuntu-latest
     needs: build-backend
@@ -101,7 +51,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-app
-          path: .
+          path: artifact
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -115,4 +65,4 @@ jobs:
         with:
           app-name: 'safeshift'
           slot-name: 'Production'
-          package: backend
+          package: artifact/backend
