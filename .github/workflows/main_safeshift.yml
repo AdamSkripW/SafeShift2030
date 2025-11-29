@@ -22,7 +22,7 @@ jobs:
           python-version: '3.14'
 
       - name: Build backend - create venv and install dependencies
-        working-directory: main/backend
+        working-directory: backend
         run: |
           python -m venv antenv
           source antenv/bin/activate
@@ -33,8 +33,8 @@ jobs:
         with:
           name: python-app
           path: |
-            main/backend
-            !main/backend/antenv/
+            backend
+            !backend/antenv/
 
   deploy:
     runs-on: ubuntu-latest
