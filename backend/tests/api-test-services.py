@@ -6,6 +6,12 @@ Tests SafeShift Index calculation, Anomaly Detection, Predictions, and LLM integ
 import requests
 import json
 from datetime import datetime, timedelta
+import sys
+
+# Set UTF-8 encoding for Windows console
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # API Base URL
 BASE_URL = "http://localhost:5000/api"
@@ -66,19 +72,20 @@ def test_safeshift_index_calculation():
         print_result(f"Index: {index}, Zone: {zone}", zone == 'green')
         print_data("Shift Data", shift_data)
     else:
-        print_result("Failed to create green zone shift", False)
+        print_result(f"Failed to create green zone shift - Status: {response.status_code}", False)
+        print(f"{Colors.RED}Error: {response.text}{Colors.END}")
     
     # Scenario 2: Yellow Zone - Moderate risk
     print(f"\n{Colors.YELLOW}Scenario 2: Yellow Zone (Moderate Risk){Colors.END}")
     yellow_shift = {
         "UserId": 1,
         "ShiftDate": (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d'),
-        "HoursSleptBefore": 5,
-        "ShiftType": "night",
+        "HoursSleptBefore": 6,  # Changed from 5 to 6 (20 → 10 points)
+        "ShiftType": "day",      # Changed from night to day (25 → 10 points)
         "ShiftLengthHours": 12,
         "PatientsCount": 10,
         "StressLevel": 6,
-        "ShiftNote": "Night shift, bit tired"
+        "ShiftNote": "Long day shift, moderately tired"
     }
     
     response = requests.post(f"{BASE_URL}/shifts", json=yellow_shift)
@@ -257,7 +264,7 @@ def test_timeoff_integration():
         "UserId": 1,
         "StartDate": (datetime.now() + timedelta(days=15)).strftime('%Y-%m-%d'),
         "EndDate": (datetime.now() + timedelta(days=17)).strftime('%Y-%m-%d'),
-        "Reason": "burnout_prevention",
+        "Reason": "burnout_risk",
         "Status": "pending",
         "Notes": "Need recovery time after consecutive night shifts"
     }

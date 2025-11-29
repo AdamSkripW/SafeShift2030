@@ -3,6 +3,13 @@ Quick test to verify service imports work correctly
 Run this to ensure the new service structure is working
 """
 
+import sys
+from pathlib import Path
+
+# Add backend directory to Python path
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
 print("Testing service imports...")
 
 try:
@@ -29,13 +36,14 @@ try:
     print("✓ Individual service imports working")
     
     # Test SafeShift calculation
-    index, zone = SafeShiftService.calculate_index(
+    result = SafeShiftService.calculate_index(
         hours_slept=5,
         shift_type='night',
         shift_length=12,
         patients_count=10,
         stress_level=7
     )
+    index, zone = result
     print(f"✓ SafeShift calculation working: Index={index}, Zone={zone}")
     
     # Test LLM initialization
