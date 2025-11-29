@@ -1,0 +1,171 @@
+<app-navbar></app-navbar>
+
+<div class="new-shift-container">
+  <div class="content-wrapper">
+    <header class="page-header">
+      <h1>Log Your Shift</h1>
+      <p class="subtitle">Track your work hours and well-being</p>
+    </header>
+
+    <div class="error-banner" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <form [formGroup]="shiftForm" (ngSubmit)="onSubmit()" class="shift-form">
+      
+      <!-- Shift Date -->
+      <div class="form-group">
+        <label for="shiftDate" class="form-label">Shift Date *</label>
+        <input
+          type="date"
+          id="shiftDate"
+          formControlName="shiftDate"
+          class="form-input"
+          [class.invalid]="submitted && f['shiftDate'].errors"
+        />
+        <div class="error-message" *ngIf="submitted && f['shiftDate'].errors">
+          <span *ngIf="f['shiftDate'].errors['required']">Shift date is required</span>
+        </div>
+      </div>
+
+      <!-- Hours Slept Before -->
+      <div class="form-group">
+        <label for="hoursSleptBefore" class="form-label">
+          Hours Slept Before Shift *
+          <span class="label-hint">(0-24 hours)</span>
+        </label>
+        <input
+          type="number"
+          id="hoursSleptBefore"
+          formControlName="hoursSleptBefore"
+          class="form-input"
+          [class.invalid]="submitted && f['hoursSleptBefore'].errors"
+          min="0"
+          max="24"
+          step="0.5"
+        />
+        <div class="error-message" *ngIf="submitted && f['hoursSleptBefore'].errors">
+          <span *ngIf="f['hoursSleptBefore'].errors['required']">Hours slept is required</span>
+          <span *ngIf="f['hoursSleptBefore'].errors['min'] || f['hoursSleptBefore'].errors['max']">
+            Must be between 0 and 24 hours
+          </span>
+        </div>
+      </div>
+
+      <!-- Shift Type -->
+      <div class="form-group">
+        <label for="shiftType" class="form-label">Shift Type *</label>
+        <select
+          id="shiftType"
+          formControlName="shiftType"
+          class="form-input"
+          [class.invalid]="submitted && f['shiftType'].errors"
+        >
+          <option *ngFor="let type of shiftTypes" [value]="type">
+            {{ type | titlecase }}
+          </option>
+        </select>
+        <div class="error-message" *ngIf="submitted && f['shiftType'].errors">
+          <span *ngIf="f['shiftType'].errors['required']">Shift type is required</span>
+        </div>
+      </div>
+
+      <!-- Shift Length -->
+      <div class="form-group">
+        <label for="shiftLengthHours" class="form-label">
+          Shift Length *
+          <span class="label-hint">(hours)</span>
+        </label>
+        <input
+          type="number"
+          id="shiftLengthHours"
+          formControlName="shiftLengthHours"
+          class="form-input"
+          [class.invalid]="submitted && f['shiftLengthHours'].errors"
+          min="1"
+          max="24"
+          step="0.5"
+        />
+        <div class="error-message" *ngIf="submitted && f['shiftLengthHours'].errors">
+          <span *ngIf="f['shiftLengthHours'].errors['required']">Shift length is required</span>
+          <span *ngIf="f['shiftLengthHours'].errors['min'] || f['shiftLengthHours'].errors['max']">
+            Must be between 1 and 24 hours
+          </span>
+        </div>
+      </div>
+
+      <!-- Patients Count -->
+      <div class="form-group">
+        <label for="patientsCount" class="form-label">
+          Number of Patients *
+        </label>
+        <input
+          type="number"
+          id="patientsCount"
+          formControlName="patientsCount"
+          class="form-input"
+          [class.invalid]="submitted && f['patientsCount'].errors"
+          min="0"
+        />
+        <div class="error-message" *ngIf="submitted && f['patientsCount'].errors">
+          <span *ngIf="f['patientsCount'].errors['required']">Patient count is required</span>
+          <span *ngIf="f['patientsCount'].errors['min']">Must be 0 or greater</span>
+        </div>
+      </div>
+
+      <!-- Stress Level -->
+      <div class="form-group">
+        <label for="stressLevel" class="form-label">
+          Stress Level *
+          <span class="label-hint">(1 = Low, 10 = Extreme)</span>
+        </label>
+        <div class="stress-level-container">
+          <input
+            type="range"
+            id="stressLevel"
+            formControlName="stressLevel"
+            class="stress-slider"
+            min="1"
+            max="10"
+            step="1"
+          />
+          <div class="stress-value">{{ f['stressLevel'].value }}</div>
+        </div>
+        <div class="stress-labels">
+          <span>Low</span>
+          <span>Moderate</span>
+          <span>High</span>
+          <span>Extreme</span>
+        </div>
+        <div class="error-message" *ngIf="submitted && f['stressLevel'].errors">
+          <span *ngIf="f['stressLevel'].errors['required']">Stress level is required</span>
+        </div>
+      </div>
+
+      <!-- Shift Note -->
+      <div class="form-group">
+        <label for="shiftNote" class="form-label">
+          Notes (Optional)
+        </label>
+        <textarea
+          id="shiftNote"
+          formControlName="shiftNote"
+          class="form-input form-textarea"
+          rows="4"
+          placeholder="Any important events, challenges, or observations..."
+        ></textarea>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" (click)="onCancel()" [disabled]="loading">
+          Cancel
+        </button>
+        <button type="submit" class="btn-primary" [disabled]="loading">
+          <span *ngIf="!loading">Save Shift</span>
+          <span *ngIf="loading">Saving...</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

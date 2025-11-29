@@ -1,0 +1,138 @@
+<app-navbar></app-navbar>
+
+<div class="dashboard-container">
+  <div class="content-wrapper">
+    
+    <!-- Header -->
+    <header class="page-header">
+      <h1>My Shifts</h1>
+      <p class="subtitle">Track your work history and well-being</p>
+    </header>
+
+    <!-- Error Message -->
+    <div class="error-banner" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+      <div class="spinner"></div>
+      <p>Loading your shifts...</p>
+    </div>
+
+    <!-- Latest Shift Summary -->
+    <div class="latest-shift-card" *ngIf="!loading && latestShift">
+      <h2 class="card-title">Latest Shift</h2>
+      <div class="shift-summary">
+        <div class="summary-row">
+          <span class="summary-label">Date:</span>
+          <span class="summary-value">{{ formatDate(latestShift.shiftDate) }}</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Type:</span>
+          <span class="summary-value">
+            {{ getShiftTypeIcon(latestShift.shiftType) }} {{ latestShift.shiftType | titlecase }}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">SafeShift Index:</span>
+          <span class="summary-value index-value" [ngClass]="getZoneClass(latestShift.zone)">
+            {{ latestShift.safeShiftIndex || 'N/A' }}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Zone:</span>
+          <span class="zone-badge" [ngClass]="getZoneClass(latestShift.zone)">
+            {{ getZoneText(latestShift.zone) }}
+          </span>
+        </div>
+      </div>
+      
+      <!-- AI Explanation -->
+      <div class="ai-section" *ngIf="latestShift.aiExplanation">
+        <h3 class="ai-title">Analysis</h3>
+        <p class="ai-text">{{ latestShift.aiExplanation }}</p>
+      </div>
+
+      <!-- AI Tips -->
+      <div class="ai-section" *ngIf="latestShift.aiTips">
+        <h3 class="ai-title">Recommendations</h3>
+        <p class="ai-text" style="white-space: pre-line;">{{ latestShift.aiTips }}</p>
+      </div>
+    </div>
+
+    <!-- Shifts List -->
+    <div class="shifts-section" *ngIf="!loading">
+      <h2 class="section-title">All Shifts ({{ shifts.length }})</h2>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="shifts.length === 0">
+        <div class="empty-icon">📋</div>
+        <h3>No shifts logged yet</h3>
+        <p>Start tracking your shifts to monitor your well-being</p>
+        <button class="btn-primary" (click)="createNewShift()">
+          Log Your First Shift
+        </button>
+      </div>
+
+      <!-- Shifts Grid -->
+      <div class="shifts-grid" *ngIf="shifts.length > 0">
+        <div 
+          class="shift-card" 
+          *ngFor="let shift of shifts"
+          (click)="viewShiftDetails(shift)"
+        >
+          <div class="shift-header">
+            <div class="shift-date">
+              <span class="shift-icon">{{ getShiftTypeIcon(shift.shiftType) }}</span>
+              <span>{{ formatDate(shift.shiftDate) }}</span>
+            </div>
+            <button 
+              class="delete-btn" 
+              (click)="deleteShift(shift.shiftId, $event)"
+              title="Delete shift"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="shift-details">
+            <div class="detail-item">
+              <span class="detail-label">Sleep:</span>
+              <span class="detail-value">{{ shift.hoursSleptBefore }}h</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Length:</span>
+              <span class="detail-value">{{ shift.shiftLengthHours }}h</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Patients:</span>
+              <span class="detail-value">{{ shift.patientsCount }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Stress:</span>
+              <span class="detail-value">{{ shift.stressLevel }}/10</span>
+            </div>
+          </div>
+
+          <div class="shift-footer">
+            <div class="index-display">
+              <span class="index-label">SafeShift Index:</span>
+              <span class="index-number" [ngClass]="getZoneClass(shift.zone)">
+                {{ shift.safeShiftIndex || 'N/A' }}
+              </span>
+            </div>
+            <span class="zone-badge small" [ngClass]="getZoneClass(shift.zone)">
+              {{ shift.zone || 'N/A' }}
+            </span>
+          </div>
+
+          <div class="shift-note" *ngIf="shift.shiftNote">
+            <p>{{ shift.shiftNote }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
