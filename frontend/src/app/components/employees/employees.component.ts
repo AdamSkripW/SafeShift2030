@@ -269,6 +269,8 @@ export class EmployeesComponent implements OnInit {
 
     this.alertService.resolveAlert(this.selectedAlert.Id, data.action, data.note).subscribe({
       next: () => {
+        // Close modal immediately
+        this.closeModal();
         // Refresh alerts after resolving
         if (this.selectedEmployee?.UserId) {
           this.loadEmployeeAlerts(this.selectedEmployee.UserId);
@@ -276,6 +278,7 @@ export class EmployeesComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error resolving alert:', error);
+        this.closeModal();
       }
     });
   }

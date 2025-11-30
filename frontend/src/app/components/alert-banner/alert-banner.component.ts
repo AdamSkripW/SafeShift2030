@@ -98,6 +98,8 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
     this.alertService.resolveAlert(this.selectedAlert.Id, data.action, data.note).subscribe({
       next: () => {
         console.log('Alert resolved successfully');
+        // Close modal immediately
+        this.closeModal();
         // Refresh alerts from current user
         const user = this.authService.getCurrentUser();
         if (user && user.UserId) {
@@ -106,6 +108,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error resolving alert:', error);
+        this.closeModal();
       }
     });
   }
