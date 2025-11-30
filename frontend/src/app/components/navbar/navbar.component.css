@@ -4,7 +4,7 @@
   box-shadow: 0 2px 8px var(--shadow);
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: 1100;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 

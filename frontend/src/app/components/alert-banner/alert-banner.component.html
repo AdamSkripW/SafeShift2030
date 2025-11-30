@@ -6,7 +6,7 @@
   </div>
 </div>
 
-<div class="alert-banner-container" *ngIf="!loading && summary && summary.total_active > 0">
+<div class="alert-banner-container" *ngIf="!loading && alerts.length > 0 && summary && summary.total_active > 0">
   <div class="alert-banner" [ngClass]="getBannerClass()">
     <div class="alert-banner-header" (click)="toggleCollapse()">
       <div class="alert-banner-summary">
@@ -34,7 +34,7 @@
       <div class="alert-list">
         <div 
           class="alert-item" 
-          *ngFor="let alert of getCriticalAndHighAlerts().slice(0, 5)"
+          *ngFor="let alert of alerts.slice(0, 10)"
           [ngClass]="getSeverityClass(alert.Severity)">
           <div class="alert-item-header">
             <span class="alert-item-icon">{{ getAlertIcon(alert.AlertType) }}</span>
@@ -57,9 +57,9 @@
           </button>
         </div>
 
-        <div class="alert-footer" *ngIf="getCriticalAndHighAlerts().length > 5">
+        <div class="alert-footer" *ngIf="alerts.length > 10">
           <span class="more-alerts">
-            +{{ getCriticalAndHighAlerts().length - 5 }} more critical/high alerts
+            +{{ alerts.length - 10 }} more alerts
           </span>
         </div>
       </div>

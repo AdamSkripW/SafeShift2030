@@ -27,6 +27,7 @@ export interface AlertSummary {
   };
   by_type: Record<string, number>;
   has_critical: boolean;
+  has_high: boolean;
 }
 
 export interface AlertsResponse {
@@ -79,15 +80,46 @@ export class AlertService {
       headers: this.getHeaders()
     }).pipe(
       tap(() => {
+        console.log('[AlertService] Alert resolved, updating local state');
+        // Find the alert to get its severity before removing
+        const resolvedAlert = this.alertsSubject.value.find(a => a.AlertId === alertId);
+        
         // Update local state by removing the resolved alert
         const currentAlerts = this.alertsSubject.value.filter(a => a.AlertId !== alertId);
         this.alertsSubject.next(currentAlerts);
+        console.log('[AlertService] Remaining alerts:', currentAlerts.length);
         
-        // Update summary
+        // Update summary - create a new object to trigger change detection
         const currentSummary = this.summarySubject.value;
-        if (currentSummary) {
-          currentSummary.total_active--;
-          this.summarySubject.next(currentSummary);
+        if (currentSummary && resolvedAlert) {
+          const severity = resolvedAlert.Severity.toLowerCase() as 'critical' | 'high' | 'medium' | 'low';
+          
+          // Create new by_severity object
+          const newBySeverity = { ...currentSummary.by_severity };
+          if (newBySeverity[severity] !== undefined) {
+            newBySeverity[severity]--;
+          }
+          
+          // Create new by_type object
+          const newByType = { ...currentSummary.by_type };
+          if (newByType[resolvedAlert.AlertType] !== undefined) {
+            newByType[resolvedAlert.AlertType]--;
+            if (newByType[resolvedAlert.AlertType] === 0) {
+              delete newByType[resolvedAlert.AlertType];
+            }
+          }
+          
+          // Create new summary object
+          const newSummary: AlertSummary = {
+            total_active: currentSummary.total_active - 1,
+            by_severity: newBySeverity,
+            by_type: newByType,
+            has_critical: newBySeverity.critical > 0,
+            has_high: newBySeverity.high > 0
+          };
+          
+          this.summarySubject.next(newSummary);
+          console.log('[AlertService] Updated summary:', newSummary);
         }
       })
     );

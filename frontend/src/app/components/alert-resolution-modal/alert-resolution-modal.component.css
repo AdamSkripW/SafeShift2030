@@ -115,17 +115,17 @@
 }
 
 .alert-info-severity.severity-critical {
-  background: #f44336;
+  background: var(--alert-critical);
   color: white;
 }
 
 .alert-info-severity.severity-high {
-  background: #ff9800;
+  background: var(--alert-high);
   color: white;
 }
 
 .alert-info-severity.severity-medium {
-  background: #2196f3;
+  background: var(--alert-medium);
   color: white;
 }
 

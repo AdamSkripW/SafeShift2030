@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AlertService, BurnoutAlert, AlertSummary } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
@@ -23,7 +23,8 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
 
   constructor(
     private alertService: AlertService,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -34,6 +35,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
         this.alerts = alerts.filter(a => !a.IsResolved);
         console.log('[AlertBanner] Filtered unresolved alerts:', this.alerts);
         this.loading = false;
+        this.cdr.markForCheck();
       })
     );
 
@@ -42,6 +44,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
       this.alertService.summary$.subscribe(summary => {
         console.log('[AlertBanner] Received summary:', summary);
         this.summary = summary;
+        this.cdr.markForCheck();
       })
     );
 
@@ -95,11 +98,26 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
   onResolveAlert(data: { action: string; note: string }): void {
     if (!this.selectedAlert) return;
 
+    console.log('[AlertBanner] Resolving alert:', this.selectedAlert.AlertId);
     this.alertService.resolveAlert(this.selectedAlert.AlertId, data.action, data.note).subscribe({
       next: () => {
-        console.log('Alert resolved successfully');
+        console.log('[AlertBanner] Alert resolved successfully');
+        console.log('[AlertBanner] Current alerts before close:', this.alerts.length);
+        console.log('[AlertBanner] Current summary before close:', this.summary);
+        
         // Close modal immediately
         this.closeModal();
+        
+        // Force change detection
+        this.cdr.detectChanges();
+        
+        // Small delay to let the service update propagate
+        setTimeout(() => {
+          console.log('[AlertBanner] Alerts after resolution:', this.alerts.length);
+          console.log('[AlertBanner] Summary after resolution:', this.summary);
+          this.cdr.detectChanges();
+        }, 100);
+        
         // Refresh alerts from current user
         const user = this.authService.getCurrentUser();
         if (user && user.UserId) {
@@ -107,7 +125,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('Error resolving alert:', error);
+        console.error('[AlertBanner] Error resolving alert:', error);
         this.closeModal();
       }
     });

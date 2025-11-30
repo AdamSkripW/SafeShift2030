@@ -28,6 +28,11 @@
   --zone-yellow-text: #744210;
   --zone-red-bg: #fed7d7;
   --zone-red-text: #742a2a;
+  
+  /* Alert severity colors */
+  --alert-critical: #dc2626;
+  --alert-high: #d97706;
+  --alert-medium: #2563eb;
 }
 
 /* Dark mode colors */
@@ -49,6 +54,11 @@
   --zone-yellow-text: #fef5e7;
   --zone-red-bg: #742a2a;
   --zone-red-text: #fed7d7;
+  
+  /* Alert severity colors for dark mode */
+  --alert-critical: #ef4444;
+  --alert-high: #f59e0b;
+  --alert-medium: #3b82f6;
 }
 
 * {
