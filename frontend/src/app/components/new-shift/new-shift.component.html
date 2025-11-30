@@ -3,8 +3,8 @@
 <div class="new-shift-container">
   <div class="content-wrapper">
     <header class="page-header">
-      <h1>Log Your Shift</h1>
-      <p class="subtitle">Track your work hours and well-being</p>
+      <h1>{{ isEditMode ? 'Edit Shift' : 'Log Your Shift' }}</h1>
+      <p class="subtitle">{{ isEditMode ? 'Update your shift details' : 'Track your work hours and well-being' }}</p>
     </header>
 
     <!-- Voice Dictation Section -->
@@ -217,8 +217,8 @@
           Cancel
         </button>
         <button type="submit" class="btn-primary" [disabled]="loading">
-          <span *ngIf="!loading">Save Shift</span>
-          <span *ngIf="loading">Saving...</span>
+          <span *ngIf="!loading">{{ isEditMode ? 'Update Shift' : 'Save Shift' }}</span>
+          <span *ngIf="loading">{{ isEditMode ? 'Updating...' : 'Saving...' }}</span>
         </button>
       </div>
     </form>

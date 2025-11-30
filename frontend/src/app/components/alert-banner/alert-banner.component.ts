@@ -31,9 +31,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
     // Subscribe to alerts
     this.subscriptions.push(
       this.alertService.alerts$.subscribe(alerts => {
-        console.log('[AlertBanner] Received alerts:', alerts);
         this.alerts = alerts.filter(a => !a.IsResolved);
-        console.log('[AlertBanner] Filtered unresolved alerts:', this.alerts);
         this.loading = false;
         this.cdr.markForCheck();
       })
@@ -42,7 +40,6 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
     // Subscribe to summary
     this.subscriptions.push(
       this.alertService.summary$.subscribe(summary => {
-        console.log('[AlertBanner] Received summary:', summary);
         this.summary = summary;
         this.cdr.markForCheck();
       })
@@ -50,21 +47,16 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
 
     // Load alerts immediately if user is already authenticated
     const currentUser = this.authService.getCurrentUser();
-    console.log('[AlertBanner] Initial current user:', currentUser);
     if (currentUser && currentUser.UserId) {
-      console.log('[AlertBanner] Loading alerts immediately for userId:', currentUser.UserId);
       this.alertService.refreshAlerts(currentUser.UserId);
     }
 
     // Subscribe to current user changes and reload alerts when user changes
     this.subscriptions.push(
       this.authService.currentUser$.subscribe(user => {
-        console.log('[AlertBanner] Current user changed:', user);
         if (user && user.UserId) {
-          console.log('[AlertBanner] Fetching alerts for userId:', user.UserId);
           this.alertService.refreshAlerts(user.UserId);
         } else {
-          console.warn('[AlertBanner] No authenticated user');
           // Clear alerts when no user
           this.alerts = [];
           this.summary = null;
@@ -98,13 +90,8 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
   onResolveAlert(data: { action: string; note: string }): void {
     if (!this.selectedAlert) return;
 
-    console.log('[AlertBanner] Resolving alert:', this.selectedAlert.AlertId);
     this.alertService.resolveAlert(this.selectedAlert.AlertId, data.action, data.note).subscribe({
       next: () => {
-        console.log('[AlertBanner] Alert resolved successfully');
-        console.log('[AlertBanner] Current alerts before close:', this.alerts.length);
-        console.log('[AlertBanner] Current summary before close:', this.summary);
-        
         // Close modal immediately
         this.closeModal();
         
@@ -113,8 +100,6 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
         
         // Small delay to let the service update propagate
         setTimeout(() => {
-          console.log('[AlertBanner] Alerts after resolution:', this.alerts.length);
-          console.log('[AlertBanner] Summary after resolution:', this.summary);
           this.cdr.detectChanges();
         }, 100);
         
@@ -125,7 +110,6 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('[AlertBanner] Error resolving alert:', error);
         this.closeModal();
       }
     });

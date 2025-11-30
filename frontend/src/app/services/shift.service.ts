@@ -352,21 +352,35 @@ export class ShiftService {
       const shift = this.mockShifts.find(s => s.ShiftId === shiftId);
       return of(shift!).pipe(delay(200));
     }
-    return this.http.get<Shift>(`${this.apiUrl}/${shiftId}`);
+    return this.http.get<any>(`${this.apiUrl}/${shiftId}`).pipe(
+      map(response => {
+        // Handle wrapped response
+        if (response && response.data) {
+          return response.data;
+        }
+        return response;
+      })
+    );
   }
 
   /**
    * Update an existing shift
    */
   updateShift(shiftId: number, shiftData: Partial<ShiftFormData>): Observable<Shift> {
+    // When updating a shift, mark it as no longer AI-recommended
+    const updateData = {
+      ...shiftData,
+      IsRecommended: false
+    };
+
     if (this.useMockData) {
       const index = this.mockShifts.findIndex(s => s.ShiftId === shiftId);
       if (index !== -1) {
-        this.mockShifts[index] = { ...this.mockShifts[index], ...shiftData };
+        this.mockShifts[index] = { ...this.mockShifts[index], ...updateData };
         return of(this.mockShifts[index]).pipe(delay(300));
       }
     }
-    return this.http.put<Shift>(`${this.apiUrl}/${shiftId}`, shiftData);
+    return this.http.put<Shift>(`${this.apiUrl}/${shiftId}`, updateData);
   }
 
   /**

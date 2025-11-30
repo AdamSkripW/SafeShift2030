@@ -22,9 +22,19 @@
 
     <!-- Latest Shift Summary -->
     <div class="latest-shift-card" *ngIf="!loading && latestShift">
-      <h2 class="card-title">
-        {{ selectedShiftId && selectedShiftId !== shifts[0]?.ShiftId ? 'Selected Shift' : 'Latest Shift' }}
-      </h2>
+      <div class="card-header-row">
+        <h2 class="card-title">
+          {{ selectedShiftId && selectedShiftId !== shifts[0]?.ShiftId ? 'Selected Shift' : 'Latest Shift' }}
+          <span class="ai-badge-large" *ngIf="isSelectedShiftRecommended()">🤖 AI Recommended</span>
+        </h2>
+        <button 
+          class="btn-edit" 
+          *ngIf="isSelectedShiftRecommended()"
+          (click)="editShift(latestShift.ShiftId)"
+          title="Edit this AI-recommended shift">
+          ✏️ Edit Shift
+        </button>
+      </div>
       <div class="shift-summary">
         <div class="summary-row">
           <span class="summary-label">Date:</span>

@@ -78,33 +78,63 @@ export class DashboardComponent implements OnInit {
     this.loading = true;
     this.errorMessage = '';
 
-    console.log('Loading dashboard data...');
     this.shiftService.getUserShifts().subscribe({
       next: (shifts) => {
-        console.log('Received shifts:', shifts);
-        
         // Ensure shifts is an array
         if (!Array.isArray(shifts)) {
-          console.error('Shifts is not an array:', shifts);
           this.errorMessage = 'Invalid data format received from server.';
           this.loading = false;
           return;
         }
         
-        console.log('Number of shifts:', shifts.length);
-        
         // Separate finished shifts from recommended/future shifts
-        const finishedShifts = shifts.filter(shift => !shift.IsRecommended);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+        
+        const finishedShifts = shifts.filter(shift => {
+          // Filter out recommended shifts AND future shifts
+          if (shift.IsRecommended) return false;
+          const shiftDate = new Date(shift.ShiftDate);
+          shiftDate.setHours(0, 0, 0, 0);
+          return shiftDate <= today; // Only include shifts up to today
+        });
         const recommendedShifts = shifts.filter(shift => shift.IsRecommended);
+        
+        console.log('Finished shifts count:', finishedShifts.length);
+        console.log('Nov 30 shifts:', finishedShifts.filter(s => s.ShiftDate.includes('2025-11-30')).map(s => ({
+          ShiftId: s.ShiftId,
+          ShiftDate: s.ShiftDate,
+          CreatedAt: s.CreatedAt,
+          IsRecommended: s.IsRecommended
+        })));
         
         // Only use finished shifts for stats and charts
         this.recentShifts = finishedShifts
-          .sort((a, b) => new Date(b.ShiftDate).getTime() - new Date(a.ShiftDate).getTime())
+          .sort((a, b) => {
+            // First sort by ShiftDate
+            const dateCompare = new Date(b.ShiftDate).getTime() - new Date(a.ShiftDate).getTime();
+            if (dateCompare !== 0) return dateCompare;
+            // If dates are equal, sort by CreatedAt (most recent first)
+            return new Date(b.CreatedAt || 0).getTime() - new Date(a.CreatedAt || 0).getTime();
+          })
           .slice(0, 7); // Last 7 finished shifts
+
+        console.log('First 3 shifts after sorting:', this.recentShifts.slice(0, 3).map(s => ({
+          ShiftId: s.ShiftId,
+          ShiftDate: s.ShiftDate,
+          CreatedAt: s.CreatedAt
+        })));
 
         this.calculateStats(finishedShifts);
         this.prepareStressData(this.recentShifts);
         this.latestShift = this.recentShifts.length > 0 ? this.recentShifts[0] : null;
+        
+        console.log('Latest shift selected:', {
+          ShiftId: this.latestShift?.ShiftId,
+          ShiftDate: this.latestShift?.ShiftDate,
+          CreatedAt: this.latestShift?.CreatedAt,
+          PatientsCount: this.latestShift?.PatientsCount
+        });
         
         // Store all shifts for the full list view
         this.shifts = shifts;
@@ -115,12 +145,9 @@ export class DashboardComponent implements OnInit {
         }
         
         this.loading = false;
-        console.log('Dashboard loaded, loading =', this.loading);
-        
         this.cdr.detectChanges(); // Manually trigger change detection
       },
       error: (error) => {
-        console.error('Error loading dashboard data:', error);
         this.errorMessage = error.error?.message || 'Failed to load dashboard data. Please try again.';
         this.loading = false;
         this.cdr.detectChanges();

@@ -146,4 +146,19 @@ export class ShiftsDashboardComponent implements OnInit {
     this.latestShift = shift;
     this.selectedShiftId = shift.ShiftId || null;
   }
+
+  /**
+   * Edit a shift (navigate to edit page)
+   */
+  editShift(shiftId: number | undefined): void {
+    if (!shiftId) return;
+    this.router.navigate(['/shift/edit', shiftId]);
+  }
+
+  /**
+   * Check if selected shift is AI-recommended
+   */
+  isSelectedShiftRecommended(): boolean {
+    return this.latestShift?.IsRecommended === true;
+  }
 }

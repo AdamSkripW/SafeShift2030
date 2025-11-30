@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { NavbarComponent } from '../../components/navbar/navbar.component';
 import { ShiftService } from '../../services/shift.service';
 import { ShiftFormData, ShiftType } from '../../models/shift.model';
@@ -19,6 +19,8 @@ export class NewShiftComponent implements OnInit {
   submitted = false;
   loading = false;
   errorMessage = '';
+  isEditMode = false;
+  shiftId: number | null = null;
 
   shiftTypes: ShiftType[] = ['day', 'night'];
   stressLevels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -40,6 +42,7 @@ export class NewShiftComponent implements OnInit {
     private fb: FormBuilder,
     private shiftService: ShiftService,
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
     private zone: NgZone
@@ -55,7 +58,53 @@ export class NewShiftComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Check if we're in edit mode
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.isEditMode = true;
+      this.shiftId = parseInt(id, 10);
+      this.loadShiftData(this.shiftId);
+    }
+  }
+
+  /**
+   * Load shift data for editing
+   */
+  loadShiftData(shiftId: number): void {
+    this.loading = true;
+    this.shiftService.getShiftById(shiftId).subscribe({
+      next: (shift) => {
+        console.log('Loaded shift data:', shift);
+        
+        // Format date to YYYY-MM-DD for input[type="date"]
+        let formattedDate = this.getTodayDate();
+        if (shift.ShiftDate) {
+          formattedDate = shift.ShiftDate.includes('T') 
+            ? shift.ShiftDate.split('T')[0] 
+            : shift.ShiftDate;
+        }
+        
+        this.shiftForm.patchValue({
+          shiftDate: formattedDate,
+          hoursSleptBefore: shift.HoursSleptBefore,
+          shiftType: shift.ShiftType,
+          shiftLengthHours: shift.ShiftLengthHours,
+          patientsCount: shift.PatientsCount,
+          stressLevel: shift.StressLevel,
+          shiftNote: shift.ShiftNote || ''
+        });
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error loading shift:', error);
+        this.errorMessage = 'Failed to load shift data';
+        this.loading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
   /**
    * Start voice recording using MediaRecorder
    */
@@ -401,15 +450,19 @@ export class NewShiftComponent implements OnInit {
       ShiftNote: this.shiftForm.value.shiftNote?.trim() || undefined
     };
 
-    this.shiftService.createShift(shiftData).subscribe({
+    const serviceCall = this.isEditMode && this.shiftId
+      ? this.shiftService.updateShift(this.shiftId, shiftData)
+      : this.shiftService.createShift(shiftData);
+
+    serviceCall.subscribe({
       next: (shift) => {
-        console.log('Shift created successfully:', shift);
-        // Navigate to shift detail or dashboard
+        console.log(`Shift ${this.isEditMode ? 'updated' : 'created'} successfully:`, shift);
+        // Navigate to shifts dashboard
         this.router.navigate(['/shifts']);
       },
       error: (error) => {
-        console.error('Error creating shift:', error);
-        this.errorMessage = error.error?.message || 'Failed to create shift. Please try again.';
+        console.error(`Error ${this.isEditMode ? 'updating' : 'creating'} shift:`, error);
+        this.errorMessage = error.error?.message || `Failed to ${this.isEditMode ? 'update' : 'create'} shift. Please try again.`;
         this.loading = false;
       },
       complete: () => {

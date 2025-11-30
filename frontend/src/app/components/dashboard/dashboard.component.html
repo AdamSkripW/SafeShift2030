@@ -139,10 +139,14 @@
           <button class="btn-link" (click)="viewAllShifts()">View All →</button>
         </div>
 
-        <!-- Loading Agent Insights -->
-        <div class="loading-insights" *ngIf="latestShift && !latestShift.AgentInsights && !latestShift.AiExplanation">
-          <div class="spinner-small"></div>
-          <span class="loading-text">Loading AI insights...</span>
+        <!-- No insights message for AI-recommended shifts -->
+        <div class="info-message" *ngIf="latestShift && latestShift.IsRecommended && !latestShift.AgentInsights && !latestShift.AiExplanation">
+          <p>💡 AI insights will be generated after you complete this shift.</p>
+        </div>
+        
+        <!-- No insights message for regular shifts -->
+        <div class="info-message" *ngIf="latestShift && !latestShift.IsRecommended && !latestShift.AgentInsights && !latestShift.AiExplanation">
+          <p>📊 No AI insights available for this shift yet.</p>
         </div>
 
         <div class="insight-card">

@@ -14,6 +14,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/new-shift/new-shift.component').then(m => m.NewShiftComponent)
   },
   {
+    path: 'shift/edit/:id',
+    loadComponent: () => import('./components/new-shift/new-shift.component').then(m => m.NewShiftComponent)
+  },
+  {
     path: 'shifts',
     loadComponent: () => import('./components/shifts-dashboard/shifts-dashboard.component').then(m => m.ShiftsDashboardComponent)
   },
