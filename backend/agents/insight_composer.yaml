@@ -1,0 +1,359 @@
+agent_name: "InsightComposerAgent"
+version: "1.0.0"
+description: "Synthesizes outputs from multiple agents into coherent, actionable insights for healthcare workers and supervisors"
+
+model:
+  name: "gpt-4o-mini"
+  temperature: 0.4
+  max_tokens: 1000
+  response_format: "json_object"
+
+system_prompt: |
+  You are an Insight Composer Agent specialized in synthesizing complex data from multiple AI agents into clear, actionable insights for healthcare workers and supervisors.
+  
+  Your task is to:
+  1. Combine outputs from multiple agents (crisis detection, emotion classification, patient safety correlation, micro-breaks, etc.)
+  2. Identify connections and patterns across agent outputs
+  3. Prioritize insights by urgency and impact
+  4. Compose clear, empathetic messages tailored to the audience (nurse vs supervisor)
+  5. Provide specific, actionable recommendations
+  6. Avoid information overload - focus on what matters most
+  
+  Input sources you may receive:
+  - Crisis detection results (severity, risk factors)
+  - Emotion classification (primary emotion, intensity, sentiment)
+  - Patient safety correlation (risk level, concerns)
+  - Micro-break suggestions (interventions)
+  - Burnout trend data (zone history, stress patterns)
+  - Anomaly detection results (unusual patterns)
+  
+  Composition principles:
+  - Lead with most urgent information (crisis > high risk > recommendations)
+  - Use empathetic, supportive language
+  - Be specific with actions ("Take a 5-minute break" vs "Rest when possible")
+  - Connect insights ("Your high stress + 5 consecutive shifts = increased patient safety risk")
+  - Avoid jargon or technical terms from agent outputs
+  - Tailor tone to audience (compassionate for workers, data-focused for supervisors)
+  
+  Output must be JSON with this structure:
+  {
+    "summary": "1-2 sentence overview of key insight",
+    "urgency_level": "routine/attention_needed/urgent/critical",
+    "primary_insights": [
+      {
+        "category": "crisis/burnout/patient_safety/wellness/trend",
+        "message": "clear, actionable insight",
+        "supporting_data": "brief context from agents",
+        "priority": 1-5
+      }
+    ],
+    "recommendations": [
+      {
+        "action": "specific action to take",
+        "timing": "immediate/today/this_week/ongoing",
+        "expected_benefit": "what this will improve",
+        "source_agents": ["agent1", "agent2"]
+      }
+    ],
+    "nurse_message": "empathetic message for the healthcare worker",
+    "supervisor_message": "data-focused message for supervisor with staffing context",
+    "connections": [
+      {
+        "insight": "pattern identified across multiple agents",
+        "agents_involved": ["agent1", "agent2"],
+        "implication": "what this means"
+      }
+    ],
+    "confidence": 0.0-1.0
+  }
+
+user_prompt_template: |
+  Synthesize the following agent outputs into coherent insights:
+  
+  === CRISIS DETECTION ===
+  {crisis_detection_output}
+  
+  === EMOTION CLASSIFICATION ===
+  {emotion_classification_output}
+  
+  === PATIENT SAFETY CORRELATION ===
+  {patient_safety_output}
+  
+  === MICRO-BREAK SUGGESTION ===
+  {micro_break_output}
+  
+  === BURNOUT CONTEXT ===
+  - SafeShiftIndex: {safeshift_index}
+  - Current zone: {current_zone}
+  - Zone history (7 days): {zone_history}
+  - Consecutive shifts: {consecutive_shifts}
+  - Days since break: {days_since_break}
+  
+  === ANOMALY DETECTION ===
+  {anomaly_output}
+  
+  AUDIENCE: {audience}
+  
+  Compose a clear, actionable insight that connects these data points and provides specific recommendations.
+
+inputs:
+  - name: "crisis_detection_output"
+    type: "object"
+    required: false
+    description: "Output from CrisisDetectionAgent"
+    default: null
+  
+  - name: "emotion_classification_output"
+    type: "object"
+    required: false
+    description: "Output from EmotionClassifierAgent"
+    default: null
+  
+  - name: "patient_safety_output"
+    type: "object"
+    required: false
+    description: "Output from PatientSafetyCorrelationAgent"
+    default: null
+  
+  - name: "micro_break_output"
+    type: "object"
+    required: false
+    description: "Output from MicroBreakCoachAgent"
+    default: null
+  
+  - name: "anomaly_output"
+    type: "string"
+    required: false
+    description: "Anomaly detection results"
+    default: "No anomalies detected"
+  
+  - name: "safeshift_index"
+    type: "number"
+    required: true
+    description: "Current SafeShiftIndex score"
+    validation:
+      min: 0
+      max: 100
+  
+  - name: "current_zone"
+    type: "string"
+    required: true
+    description: "Current burnout zone"
+    enum: ["green", "yellow", "orange", "red"]
+  
+  - name: "zone_history"
+    type: "string"
+    required: false
+    description: "Zone pattern over last 7 days"
+    default: "No historical data"
+  
+  - name: "consecutive_shifts"
+    type: "integer"
+    required: true
+    description: "Number of consecutive shifts worked"
+  
+  - name: "days_since_break"
+    type: "integer"
+    required: true
+    description: "Days since last day off"
+  
+  - name: "audience"
+    type: "string"
+    required: true
+    description: "Target audience for the insight"
+    enum: ["nurse", "supervisor", "both"]
+
+outputs:
+  - name: "summary"
+    type: "string"
+    description: "Brief overview of key insight"
+  
+  - name: "urgency_level"
+    type: "string"
+    description: "Overall urgency classification"
+    enum: ["routine", "attention_needed", "urgent", "critical"]
+  
+  - name: "primary_insights"
+    type: "array"
+    description: "Main insights prioritized by importance"
+  
+  - name: "recommendations"
+    type: "array"
+    description: "Specific, actionable recommendations"
+  
+  - name: "nurse_message"
+    type: "string"
+    description: "Empathetic message for healthcare worker"
+  
+  - name: "supervisor_message"
+    type: "string"
+    description: "Data-focused message for supervisor"
+  
+  - name: "connections"
+    type: "array"
+    description: "Cross-agent patterns identified"
+  
+  - name: "confidence"
+    type: "number"
+    description: "Confidence in insight synthesis (0.0-1.0)"
+
+test_cases:
+  - name: "Critical scenario - multiple red flags"
+    inputs:
+      crisis_detection_output:
+        severity: "high"
+        risk_factors: ["hopelessness", "performance_anxiety", "exhaustion"]
+        confidence: 0.85
+      emotion_classification_output:
+        primary_emotion: "hopelessness"
+        intensity: 8
+        crisis_flag: true
+      patient_safety_output:
+        risk_level: "high"
+        correlation_score: 0.78
+        patient_safety_concerns: 
+          - type: "medication_errors"
+            likelihood: "high"
+      safeshift_index: 22
+      current_zone: "red"
+      consecutive_shifts: 5
+      days_since_break: 6
+      audience: "both"
+    expected_outputs:
+      urgency_level: "critical"
+      summary: "mentions immediate intervention"
+      recommendations: "includes immediate actions"
+  
+  - name: "Moderate burnout with patient safety correlation"
+    inputs:
+      emotion_classification_output:
+        primary_emotion: "burnout"
+        intensity: 7
+        crisis_flag: false
+      patient_safety_output:
+        risk_level: "moderate"
+        correlation_score: 0.62
+      micro_break_output:
+        break_name: "Hallway Reset Walk"
+        duration: 3
+        stress_reduction: 2
+      safeshift_index: 45
+      current_zone: "orange"
+      consecutive_shifts: 4
+      days_since_break: 4
+      audience: "both"
+    expected_outputs:
+      urgency_level: "attention_needed"
+      connections: "links burnout to patient safety"
+  
+  - name: "Positive shift with wellness reinforcement"
+    inputs:
+      emotion_classification_output:
+        primary_emotion: "positive"
+        intensity: 3
+        sentiment_score: 0.7
+      safeshift_index: 78
+      current_zone: "green"
+      consecutive_shifts: 2
+      days_since_break: 1
+      audience: "nurse"
+    expected_outputs:
+      urgency_level: "routine"
+      nurse_message: "includes positive reinforcement"
+  
+  - name: "Trend detection - gradual decline"
+    inputs:
+      emotion_classification_output:
+        primary_emotion: "frustration"
+        intensity: 6
+      safeshift_index: 52
+      current_zone: "yellow"
+      zone_history: "green → yellow → yellow → orange (declining)"
+      consecutive_shifts: 3
+      days_since_break: 3
+      anomaly_output: "Detected gradual stress increase over 7 days"
+      audience: "supervisor"
+    expected_outputs:
+      connections: "identifies declining trend"
+      supervisor_message: "includes staffing recommendation"
+  
+  - name: "Multi-agent coordination - break suggestion with safety context"
+    inputs:
+      patient_safety_output:
+        risk_level: "moderate"
+        primary_risk_factors: ["consecutive_shifts", "sleep_deficit"]
+      micro_break_output:
+        break_name: "Seated Breathing Reset"
+        duration: 4
+        stress_reduction: 2
+      safeshift_index: 48
+      current_zone: "yellow"
+      consecutive_shifts: 4
+      days_since_break: 3
+      audience: "nurse"
+    expected_outputs:
+      recommendations: "connects break to safety improvement"
+      nurse_message: "explains why break matters for patients"
+
+error_handling:
+  fallback_response:
+    summary: "Current shift data indicates standard monitoring recommended"
+    urgency_level: "routine"
+    primary_insights:
+      - category: "wellness"
+        message: "Continue monitoring your stress levels and self-care practices"
+        supporting_data: "Limited data available for comprehensive analysis"
+        priority: 3
+    recommendations:
+      - action: "Complete shift notes to enable better insights"
+        timing: "ongoing"
+        expected_benefit: "More personalized recommendations and early warning detection"
+        source_agents: []
+    nurse_message: "Keep taking care of yourself and documenting your experiences to help us support you better."
+    supervisor_message: "Insufficient data for detailed insights. Encourage comprehensive shift note documentation."
+    connections: []
+    confidence: 0.3
+  
+  max_retries: 2
+  timeout_seconds: 15
+
+metadata:
+  category: "synthesis"
+  tags: ["insight_composition", "multi_agent", "recommendations", "messaging"]
+  integration_points:
+    - "Receives outputs from: CrisisDetectionAgent, EmotionClassifierAgent, PatientSafetyCorrelationAgent, MicroBreakCoachAgent"
+    - "Feeds into: Frontend dashboard, Supervisor notifications, Mobile alerts"
+    - "Triggers: BurnoutAlert creation for critical insights"
+  data_sources:
+    - "All agent outputs"
+    - "SafeShiftIndex and zone calculations"
+    - "Shift history and patterns"
+    - "Anomaly detection results"
+  output_consumers:
+    - "Frontend dashboard (displays nurse_message)"
+    - "Supervisor interface (displays supervisor_message)"
+    - "Alert system (uses urgency_level)"
+    - "Analytics (tracks insight patterns)"
+  
+  usage_notes: |
+    This is the final agent in the processing pipeline, synthesizing all previous agent outputs.
+    
+    Typical workflow:
+    1. Multiple agents run (emotion classifier → crisis detection → patient safety → micro-break)
+    2. Agent orchestrator collects all outputs
+    3. InsightComposerAgent receives all outputs + context
+    4. Composes unified insight with tailored messages
+    5. Frontend displays nurse_message, supervisor sees supervisor_message
+    6. Critical insights trigger BurnoutAlert creation
+    
+    Design principles:
+    - This agent should NEVER run without at least one input agent output
+    - Always tailor message to audience (nurse vs supervisor)
+    - Prioritize actionability over comprehensiveness
+    - Use empathetic language for nurses, data-focused for supervisors
+    - Connect insights across agents (e.g., "Your exhaustion + patient safety risk = urgent break needed")
+    
+    Performance considerations:
+    - Runs at end of pipeline, so total latency = sum of all agents
+    - Should be fast (<1s) since it's just text composition
+    - Cache common insight patterns (e.g., "high stress + consecutive shifts" templates)

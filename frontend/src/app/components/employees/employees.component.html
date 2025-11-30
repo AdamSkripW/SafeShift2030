@@ -1,0 +1,257 @@
+<app-navbar></app-navbar>
+
+<div class="dashboard-container">
+  <div class="content-wrapper">
+    
+    <!-- Header -->
+    <header class="page-header">
+      <h1>👥 Employee Management</h1>
+      <p class="subtitle">Monitor your team's well-being and shift history</p>
+    </header>
+
+    <!-- Error Message -->
+    <div class="error-banner" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+      <div class="spinner"></div>
+      <p>Loading employees...</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="employees-layout" *ngIf="!loading">
+      
+      <!-- Left Panel: Employee List -->
+      <div class="employees-panel">
+        <h2 class="panel-title">Employees ({{ employees.length }})</h2>
+        
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="employees.length === 0">
+          <div class="empty-icon">👥</div>
+          <h3>No employees found</h3>
+          <p>No employees are currently registered in your hospital</p>
+        </div>
+
+        <!-- Employee List -->
+        <div class="employee-list" *ngIf="employees.length > 0">
+          <div 
+            class="employee-card" 
+            [class.selected]="selectedEmployee?.UserId === employee.UserId"
+            *ngFor="let employee of employees"
+            (click)="selectEmployee(employee)"
+          >
+            <div class="employee-avatar">
+              {{ employee.FirstName.charAt(0) }}{{ employee.LastName.charAt(0) }}
+            </div>
+            <div class="employee-info">
+              <div class="employee-name">
+                {{ employee.FirstName }} {{ employee.LastName }}
+              </div>
+              <div class="employee-meta">
+                <span class="role-badge" [ngClass]="getRoleBadgeClass(employee.Role)">
+                  {{ employee.Role }}
+                </span>
+                <span class="department-badge">
+                  {{ getDepartmentIcon(employee.Department) }} {{ employee.Department }}
+                </span>
+              </div>
+            </div>
+            <div class="employee-arrow">›</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Employee Details -->
+      <div class="details-panel">
+        
+        <!-- No Selection State -->
+        <div class="no-selection" *ngIf="!selectedEmployee">
+          <div class="no-selection-icon">👈</div>
+          <h3>Select an employee</h3>
+          <p>Choose an employee from the list to view their shifts and performance</p>
+        </div>
+
+        <!-- Employee Details -->
+        <div class="employee-details" *ngIf="selectedEmployee">
+          
+          <!-- Employee Header -->
+          <div class="employee-header">
+            <div class="employee-avatar-large">
+              {{ selectedEmployee.FirstName.charAt(0) }}{{ selectedEmployee.LastName.charAt(0) }}
+            </div>
+            <div class="employee-header-info">
+              <h2>{{ selectedEmployee.FirstName }} {{ selectedEmployee.LastName }}</h2>
+              <div class="employee-badges">
+                <span class="role-badge" [ngClass]="getRoleBadgeClass(selectedEmployee.Role)">
+                  {{ selectedEmployee.Role }}
+                </span>
+                <span class="department-badge">
+                  {{ getDepartmentIcon(selectedEmployee.Department) }} {{ selectedEmployee.Department }}
+                </span>
+              </div>
+              <div class="employee-contact">
+                <span>📧 {{ selectedEmployee.Email }}</span>
+                <span *ngIf="selectedEmployee.Hospital">🏥 {{ selectedEmployee.Hospital }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading Shifts -->
+          <div class="loading-state-small" *ngIf="loadingShifts">
+            <div class="spinner-small"></div>
+            <p>Loading shifts...</p>
+          </div>
+
+          <!-- Statistics -->
+          <div class="statistics-grid" *ngIf="!loadingShifts && employeeShifts.length > 0">
+            <div class="stat-card">
+              <div class="stat-icon">📊</div>
+              <div class="stat-content">
+                <div class="stat-value">{{ employeeShifts.length }}</div>
+                <div class="stat-label">Total Shifts</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📈</div>
+              <div class="stat-content">
+                <div class="stat-value">{{ getAverageSafeShiftIndex() }}</div>
+                <div class="stat-label">Avg SafeShift Index</div>
+              </div>
+            </div>
+            <div class="stat-card zone-green">
+              <div class="stat-icon">✅</div>
+              <div class="stat-content">
+                <div class="stat-value">{{ getZonePercentage('green') }}%</div>
+                <div class="stat-label">Green Zone</div>
+              </div>
+            </div>
+            <div class="stat-card zone-yellow">
+              <div class="stat-icon">⚠️</div>
+              <div class="stat-content">
+                <div class="stat-value">{{ getZonePercentage('yellow') }}%</div>
+                <div class="stat-label">Yellow Zone</div>
+              </div>
+            </div>
+            <div class="stat-card zone-red">
+              <div class="stat-icon">🚨</div>
+              <div class="stat-content">
+                <div class="stat-value">{{ getZonePercentage('red') }}%</div>
+                <div class="stat-label">Red Zone</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Latest Shift Summary -->
+          <div class="latest-shift-card" *ngIf="!loadingShifts && latestShift">
+            <h3 class="card-title">
+              {{ selectedShiftId && selectedShiftId !== employeeShifts[0]?.ShiftId ? 'Selected Shift' : 'Latest Shift' }}
+            </h3>
+            <div class="shift-summary">
+              <div class="summary-row">
+                <span class="summary-label">Date:</span>
+                <span class="summary-value">{{ formatDate(latestShift.ShiftDate) }}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Type:</span>
+                <span class="summary-value">
+                  {{ getShiftTypeIcon(latestShift.ShiftType) }} {{ latestShift.ShiftType | titlecase }}
+                </span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">SafeShift Index:</span>
+                <span class="summary-value index-value" [ngClass]="getZoneClass(latestShift.Zone)">
+                  {{ latestShift.SafeShiftIndex || 'N/A' }}
+                </span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Zone:</span>
+                <span class="zone-badge" [ngClass]="getZoneClass(latestShift.Zone)">
+                  {{ getZoneText(latestShift.Zone) }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- AI Explanation -->
+            <div class="ai-section" *ngIf="latestShift.AiExplanation">
+              <h4 class="ai-title">Analysis</h4>
+              <p class="ai-text">{{ latestShift.AiExplanation }}</p>
+            </div>
+
+            <!-- AI Tips -->
+            <div class="ai-section" *ngIf="latestShift.AiTips">
+              <h4 class="ai-title">Recommendations</h4>
+              <p class="ai-text" style="white-space: pre-line;">{{ latestShift.AiTips }}</p>
+            </div>
+          </div>
+
+          <!-- Shifts History -->
+          <div class="shifts-section" *ngIf="!loadingShifts">
+            <h3 class="section-title">Shift History ({{ employeeShifts.length }})</h3>
+
+            <!-- Empty State -->
+            <div class="empty-state-small" *ngIf="employeeShifts.length === 0">
+              <div class="empty-icon-small">📋</div>
+              <p>No shifts logged yet</p>
+            </div>
+
+            <!-- Shifts Grid -->
+            <div class="shifts-grid" *ngIf="employeeShifts.length > 0">
+              <div 
+                class="shift-card" 
+                [class.selected]="shift.ShiftId === selectedShiftId"
+                *ngFor="let shift of employeeShifts"
+                (click)="viewShiftDetails(shift)"
+              >
+                <div class="shift-header">
+                  <div class="shift-date">
+                    <span class="shift-icon">{{ getShiftTypeIcon(shift.ShiftType) }}</span>
+                    <span>{{ formatDate(shift.ShiftDate) }}</span>
+                  </div>
+                </div>
+
+                <div class="shift-details">
+                  <div class="detail-item">
+                    <span class="detail-label">Sleep:</span>
+                    <span class="detail-value">{{ shift.HoursSleptBefore }}h</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Length:</span>
+                    <span class="detail-value">{{ shift.ShiftLengthHours }}h</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Patients:</span>
+                    <span class="detail-value">{{ shift.PatientsCount }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Stress:</span>
+                    <span class="detail-value">{{ shift.StressLevel }}/10</span>
+                  </div>
+                </div>
+
+                <div class="shift-footer">
+                  <div class="index-display">
+                    <span class="index-label">SafeShift Index:</span>
+                    <span class="index-number" [ngClass]="getZoneClass(shift.Zone)">
+                      {{ shift.SafeShiftIndex || 'N/A' }}
+                    </span>
+                  </div>
+                  <span class="zone-badge small" [ngClass]="getZoneClass(shift.Zone)">
+                    {{ shift.Zone || 'N/A' }}
+                  </span>
+                </div>
+
+                <div class="shift-note" *ngIf="shift.ShiftNote">
+                  <p>{{ shift.ShiftNote }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

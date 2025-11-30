@@ -26,6 +26,15 @@ export class ShiftsDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Redirect managers to employees page
+    const userJson = localStorage.getItem('currentUser');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      if (user.Department === 'Management') {
+        this.router.navigate(['/employees']);
+        return;
+      }
+    }
     this.loadShifts();
   }
 

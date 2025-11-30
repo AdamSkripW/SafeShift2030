@@ -135,6 +135,7 @@ class Shift(db.Model):
     Zone = db.Column(db.Enum('green', 'yellow', 'red', name='shift_zone_enum'), nullable=False, default='green')
     AiExplanation = db.Column(db.Text)
     AiTips = db.Column(db.Text)
+    AgentInsights = db.Column(db.JSON, nullable=True)
 
     CreatedAt = db.Column(db.DateTime, default=datetime.utcnow)
     UpdatedAt = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -161,6 +162,7 @@ class Shift(db.Model):
             'Zone': self.Zone,
             'AiExplanation': self.AiExplanation,
             'AiTips': self.AiTips,
+            'AgentInsights': self.AgentInsights,
             'CreatedAt': self.CreatedAt.isoformat() if self.CreatedAt else None,
             'UpdatedAt': self.UpdatedAt.isoformat() if self.UpdatedAt else None,
         }
@@ -271,3 +273,74 @@ class Session(db.Model):
             'IpAddress': self.IpAddress,
             'UserAgent': self.UserAgent,
         }
+
+
+# ---------------------------------------------
+# Agent Metrics (AI Agent Monitoring)
+# ---------------------------------------------
+class AgentMetric(db.Model):
+    __tablename__ = 'AgentMetrics'
+
+    MetricId = db.Column(db.Integer, primary_key=True)
+    
+    # Agent identification
+    AgentName = db.Column(db.String(100), nullable=False, index=True)
+    ModelVersion = db.Column(db.String(50), default='gpt-4o-mini')
+    
+    # User context
+    UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId', ondelete='SET NULL'), nullable=True, index=True)
+    ShiftId = db.Column(db.Integer, db.ForeignKey('Shifts.ShiftId', ondelete='SET NULL'), nullable=True)
+    
+    # Request/Response metrics
+    InputTokens = db.Column(db.Integer, nullable=True)
+    OutputTokens = db.Column(db.Integer, nullable=True)
+    LatencyMs = db.Column(db.Integer, nullable=True)
+    
+    # Agent-specific output (for CrisisDetectionAgent)
+    Severity = db.Column(db.String(20), nullable=True, index=True)
+    ConfidenceScore = db.Column(db.Float, nullable=True)
+    CrisisDetected = db.Column(db.Boolean, default=False, index=True)
+    EscalationNeeded = db.Column(db.Boolean, default=False)
+    
+    # Execution status
+    Success = db.Column(db.Boolean, default=True, index=True)
+    ErrorMessage = db.Column(db.Text, nullable=True)
+    FallbackUsed = db.Column(db.Boolean, default=False)
+    
+    # Metadata (JSON for flexibility)
+    RequestPayload = db.Column(db.JSON, nullable=True)
+    ResponsePayload = db.Column(db.JSON, nullable=True)
+    
+    CreatedAt = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='agent_metrics')
+    shift = db.relationship('Shift', backref='agent_metrics')
+    
+    def to_dict(self):
+        return {
+            'MetricId': self.MetricId,
+            'AgentName': self.AgentName,
+            'ModelVersion': self.ModelVersion,
+            'UserId': self.UserId,
+            'ShiftId': self.ShiftId,
+            'InputTokens': self.InputTokens,
+            'OutputTokens': self.OutputTokens,
+            'TotalTokens': (self.InputTokens or 0) + (self.OutputTokens or 0),
+            'LatencyMs': self.LatencyMs,
+            'Severity': self.Severity,
+            'ConfidenceScore': self.ConfidenceScore,
+            'CrisisDetected': self.CrisisDetected,
+            'EscalationNeeded': self.EscalationNeeded,
+            'Success': self.Success,
+            'ErrorMessage': self.ErrorMessage,
+            'FallbackUsed': self.FallbackUsed,
+            'CreatedAt': self.CreatedAt.isoformat() if self.CreatedAt else None
+        }
+    
+    def to_dict_detailed(self):
+        """Include full payloads for debugging"""
+        base = self.to_dict()
+        base['RequestPayload'] = self.RequestPayload
+        base['ResponsePayload'] = self.ResponsePayload
+        return base

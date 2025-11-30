@@ -312,6 +312,39 @@ export class ShiftService {
   }
 
   /**
+   * Get shifts for a specific user (for managers)
+   */
+  getShiftsByUserId(userId: number): Observable<Shift[]> {
+    if (this.useMockData) {
+      const userShifts = this.mockShifts.filter(shift => shift.UserId === userId);
+      return of([...userShifts]).pipe(delay(300));
+    }
+
+    // Add user_id query parameter
+    return this.http.get<any>(this.apiUrl, {
+      params: { user_id: userId.toString() }
+    }).pipe(
+      map(response => {
+        // Handle both array and object responses
+        if (Array.isArray(response)) {
+          return response;
+        }
+        // If response is an object with a shifts property
+        if (response && response.shifts && Array.isArray(response.shifts)) {
+          return response.shifts;
+        }
+        // If response is an object with a data property
+        if (response && response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        // Fallback to empty array
+        console.warn('Unexpected API response format:', response);
+        return [];
+      })
+    );
+  }
+
+  /**
    * Get a specific shift by ID
    */
   getShiftById(shiftId: number): Observable<Shift> {

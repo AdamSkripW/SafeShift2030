@@ -45,6 +45,10 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     // Subscribe to current user
     this.authService.currentUser$.subscribe(user => {
+      if (user && user.Department === 'Management') {
+        this.router.navigate(['/employees']);
+        return;
+      }
       this.currentUser = user;
     });
     

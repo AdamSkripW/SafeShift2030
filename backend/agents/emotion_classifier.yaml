@@ -1,0 +1,284 @@
+agent_name: "EmotionClassifierAgent"
+version: "1.0.0"
+description: "Pre-processes shift notes to classify emotional states and extract sentiment patterns before crisis detection analysis"
+
+model:
+  name: "gpt-4o-mini"
+  temperature: 0.2
+  max_tokens: 600
+  response_format: "json_object"
+
+system_prompt: |
+  You are an Emotion Classification Agent specialized in analyzing healthcare worker shift notes to identify emotional states and sentiment patterns.
+  
+  Your task is to:
+  1. Classify the primary emotion expressed in shift notes
+  2. Identify emotion intensity levels
+  3. Detect emotion transitions (e.g., frustration → despair)
+  4. Extract key emotional phrases and sentiment indicators
+  5. Flag notes that warrant immediate crisis detection analysis
+  
+  Emotion categories:
+  - BURNOUT: Exhaustion, emotional depletion, feeling overwhelmed
+  - FRUSTRATION: Anger at systems, helplessness, irritation
+  - ANXIETY: Worry, fear, nervousness about performance
+  - SADNESS: Grief, loss, emotional pain from patient outcomes
+  - HOPELESSNESS: Despair, lack of meaning, questioning career
+  - GUILT: Self-blame, feeling inadequate, regret
+  - NEUTRAL: Factual reporting without strong emotion
+  - POSITIVE: Satisfaction, accomplishment, gratitude
+  
+  Crisis indicators (trigger immediate analysis):
+  - Hopelessness with high intensity (≥7/10)
+  - Multiple negative emotions in single note
+  - Phrases suggesting self-harm or quitting
+  - Extreme language ("can't go on", "nothing matters")
+  
+  Output must be JSON with this structure:
+  {
+    "primary_emotion": "emotion category",
+    "intensity": 0-10,
+    "secondary_emotions": ["emotion1", "emotion2"],
+    "sentiment_score": -1.0 to 1.0,
+    "emotional_phrases": ["phrase1", "phrase2"],
+    "emotion_transitions": [
+      {
+        "from": "emotion",
+        "to": "emotion",
+        "trigger": "description"
+      }
+    ],
+    "crisis_flag": true/false,
+    "crisis_reasoning": "explanation if flagged",
+    "recommended_action": "immediate_analysis/standard_processing/positive_reinforcement",
+    "confidence": 0.0-1.0
+  }
+
+user_prompt_template: |
+  Analyze the emotional content of this healthcare worker shift note:
+  
+  SHIFT NOTE:
+  "{shift_note}"
+  
+  CONTEXT:
+  - Shift type: {shift_type}
+  - Shift duration: {shift_hours} hours
+  - Stress level (if available): {stress_level}/10
+  - Recent pattern: {recent_pattern}
+  
+  Classify the emotions, assess intensity, and determine if immediate crisis analysis is warranted.
+
+inputs:
+  - name: "shift_note"
+    type: "string"
+    required: true
+    description: "The shift note text to analyze"
+    validation:
+      min_length: 5
+      max_length: 2000
+  
+  - name: "shift_type"
+    type: "string"
+    required: false
+    description: "Type of shift (day/night/overnight)"
+    default: "unknown"
+  
+  - name: "shift_hours"
+    type: "number"
+    required: false
+    description: "Duration of shift in hours"
+    default: 8
+  
+  - name: "stress_level"
+    type: "integer"
+    required: false
+    description: "Self-reported stress level (1-10)"
+    default: null
+  
+  - name: "recent_pattern"
+    type: "string"
+    required: false
+    description: "Summary of recent emotional patterns"
+    default: "No prior data"
+
+outputs:
+  - name: "primary_emotion"
+    type: "string"
+    description: "Main emotion category identified"
+    enum: ["burnout", "frustration", "anxiety", "sadness", "hopelessness", "guilt", "neutral", "positive"]
+  
+  - name: "intensity"
+    type: "integer"
+    description: "Emotion intensity (0-10)"
+  
+  - name: "secondary_emotions"
+    type: "array"
+    description: "Additional emotions detected"
+  
+  - name: "sentiment_score"
+    type: "number"
+    description: "Overall sentiment (-1.0 negative to 1.0 positive)"
+  
+  - name: "emotional_phrases"
+    type: "array"
+    description: "Key phrases indicating emotional state"
+  
+  - name: "emotion_transitions"
+    type: "array"
+    description: "Identified shifts in emotional state"
+  
+  - name: "crisis_flag"
+    type: "boolean"
+    description: "Whether immediate crisis analysis is needed"
+  
+  - name: "crisis_reasoning"
+    type: "string"
+    description: "Explanation if crisis flagged"
+  
+  - name: "recommended_action"
+    type: "string"
+    description: "Next step recommendation"
+    enum: ["immediate_analysis", "standard_processing", "positive_reinforcement", "routine_monitoring"]
+  
+  - name: "confidence"
+    type: "number"
+    description: "Confidence in classification (0.0-1.0)"
+
+test_cases:
+  - name: "Crisis - hopelessness with extreme language"
+    inputs:
+      shift_note: "I can't do this anymore. Every shift feels like drowning. I'm failing my patients and nothing I do matters. Maybe I'm just not cut out for this."
+      shift_type: "night"
+      shift_hours: 12
+      stress_level: 9
+    expected_outputs:
+      primary_emotion: "hopelessness"
+      intensity: "≥8"
+      crisis_flag: true
+      recommended_action: "immediate_analysis"
+  
+  - name: "High burnout - exhaustion without crisis language"
+    inputs:
+      shift_note: "Completely exhausted. 5 consecutive 12-hour shifts. I feel emotionally drained and running on empty. Need a break badly."
+      shift_type: "day"
+      shift_hours: 12
+      stress_level: 8
+    expected_outputs:
+      primary_emotion: "burnout"
+      intensity: "7-8"
+      crisis_flag: false
+      recommended_action: "standard_processing"
+  
+  - name: "Frustration - system issues"
+    inputs:
+      shift_note: "So frustrated with the new charting system. Spent more time on paperwork than with patients. This is ridiculous and defeating the purpose of why I became a nurse."
+      shift_type: "day"
+      shift_hours: 10
+    expected_outputs:
+      primary_emotion: "frustration"
+      intensity: "6-7"
+      crisis_flag: false
+      sentiment_score: "<0"
+  
+  - name: "Mixed emotions - sadness with some hope"
+    inputs:
+      shift_note: "Lost a patient today that I've been caring for all week. I'm heartbroken but grateful I could be there for their family. Reminded me why this work matters."
+      shift_type: "day"
+      shift_hours: 8
+      stress_level: 6
+    expected_outputs:
+      primary_emotion: "sadness"
+      secondary_emotions: "includes positive"
+      sentiment_score: "-0.3 to 0.2"
+      crisis_flag: false
+  
+  - name: "Positive - accomplishment and satisfaction"
+    inputs:
+      shift_note: "Great shift today! Successfully managed a complex case and got positive feedback from the attending. Feeling really good about my skills."
+      shift_type: "day"
+      shift_hours: 8
+      stress_level: 3
+    expected_outputs:
+      primary_emotion: "positive"
+      sentiment_score: ">0.6"
+      recommended_action: "positive_reinforcement"
+  
+  - name: "Anxiety - performance worry"
+    inputs:
+      shift_note: "Worried I made a mistake with medication timing. Keep second-guessing myself. Can't stop thinking about it even after my shift ended."
+      shift_type: "night"
+      shift_hours: 12
+      stress_level: 7
+    expected_outputs:
+      primary_emotion: "anxiety"
+      intensity: "6-8"
+      crisis_flag: false
+  
+  - name: "Neutral - factual reporting"
+    inputs:
+      shift_note: "Routine shift. Admitted 2 patients, discharged 1. Completed all documentation on time. Standard workload."
+      shift_type: "day"
+      shift_hours: 8
+    expected_outputs:
+      primary_emotion: "neutral"
+      sentiment_score: "-0.1 to 0.1"
+      intensity: "≤3"
+  
+  - name: "Multiple crisis indicators - immediate flag"
+    inputs:
+      shift_note: "I hate this job. Feel like I'm drowning every shift. Made another mistake today. I'm a terrible nurse and patients deserve better. Don't know how much longer I can keep doing this."
+      shift_type: "night"
+      shift_hours: 12
+      stress_level: 10
+    expected_outputs:
+      crisis_flag: true
+      primary_emotion: "hopelessness"
+      secondary_emotions: "includes guilt and burnout"
+      recommended_action: "immediate_analysis"
+
+error_handling:
+  fallback_response:
+    primary_emotion: "neutral"
+    intensity: 5
+    secondary_emotions: []
+    sentiment_score: 0.0
+    emotional_phrases: []
+    emotion_transitions: []
+    crisis_flag: false
+    crisis_reasoning: ""
+    recommended_action: "standard_processing"
+    confidence: 0.2
+  
+  max_retries: 2
+  timeout_seconds: 10
+
+metadata:
+  category: "preprocessing"
+  tags: ["emotion", "sentiment_analysis", "nlp", "crisis_detection"]
+  integration_points:
+    - "CrisisDetectionAgent - receives emotion data"
+    - "InsightComposerAgent - uses emotional context"
+    - "TrendAnalysisAgent - tracks emotion patterns"
+  data_sources:
+    - "ShiftNote field from Shift model"
+    - "StressLevel from Shift model"
+    - "Historical shift notes for pattern detection"
+  output_consumers:
+    - "CrisisDetectionAgent"
+    - "EmotionalTrendDashboard"
+    - "SupervisorAlerts"
+  
+  usage_notes: |
+    This agent should run BEFORE CrisisDetectionAgent to provide emotional preprocessing.
+    
+    Typical workflow:
+    1. User submits shift with ShiftNote
+    2. EmotionClassifierAgent analyzes note → outputs emotion data
+    3. If crisis_flag=true → immediate CrisisDetectionAgent invocation
+    4. If crisis_flag=false → standard processing, emotion data stored for trends
+    5. Emotion data passed to InsightComposerAgent for comprehensive insights
+    
+    Performance optimization:
+    - Cache emotion classifications for identical notes (unlikely but possible)
+    - Batch process historical notes for pattern analysis
+    - Use emotion intensity to prioritize agent queue (high intensity → higher priority)

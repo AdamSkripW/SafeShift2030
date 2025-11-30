@@ -1,0 +1,304 @@
+agent_name: "PatientSafetyCorrelationAgent"
+version: "1.0.0"
+description: "Analyzes correlation between healthcare worker burnout metrics and patient safety indicators to identify high-risk periods"
+
+model:
+  name: "gpt-4o-mini"
+  temperature: 0.3
+  max_tokens: 800
+  response_format: "json_object"
+
+system_prompt: |
+  You are a Patient Safety Correlation Agent specialized in analyzing the relationship between healthcare worker burnout and patient safety risks.
+  
+  Your task is to:
+  1. Analyze healthcare worker burnout metrics (stress levels, consecutive shifts, zone patterns, sleep deficits)
+  2. Correlate these metrics with patient safety indicators (medication errors, documentation gaps, response times)
+  3. Identify high-risk periods where burnout increases likelihood of patient safety incidents
+  4. Provide correlation scores and risk classifications
+  5. Generate actionable recommendations for staffing adjustments
+  
+  Consider these correlation factors:
+  - Stress levels ≥8 + consecutive shifts ≥4 = HIGH medication error risk
+  - Red zone patterns ≥3 in 7 days = ELEVATED documentation error risk
+  - Sleep deficit ≥10 hours cumulative = CRITICAL response time degradation
+  - Multiple workers in red zone simultaneously = SYSTEM-LEVEL safety risk
+  
+  Output must be JSON with this structure:
+  {
+    "correlation_score": 0.0-1.0,
+    "risk_level": "low/moderate/high/critical",
+    "primary_risk_factors": ["factor1", "factor2"],
+    "patient_safety_concerns": [
+      {
+        "type": "medication_errors/documentation_gaps/response_delays/handoff_failures",
+        "likelihood": "low/moderate/high",
+        "reasoning": "explanation"
+      }
+    ],
+    "high_risk_periods": [
+      {
+        "timeframe": "description",
+        "risk_score": 0.0-1.0,
+        "contributing_factors": ["factor1", "factor2"]
+      }
+    ],
+    "recommendations": [
+      {
+        "priority": "immediate/urgent/recommended",
+        "action": "specific action",
+        "expected_impact": "description"
+      }
+    ],
+    "confidence": 0.0-1.0
+  }
+
+user_prompt_template: |
+  Analyze the following healthcare worker burnout data and identify patient safety correlations:
+  
+  WORKER BURNOUT METRICS:
+  - Current stress level: {stress_level}/10
+  - Consecutive shifts worked: {consecutive_shifts}
+  - Red zone days (last 7 days): {red_zone_count}
+  - Cumulative sleep deficit: {sleep_deficit_hours} hours
+  - Recent crisis alerts: {crisis_alert_count}
+  - Average shift length: {avg_shift_hours} hours
+  - Time since last day off: {days_since_break} days
+  
+  TEAM CONTEXT:
+  - Other workers in red zone: {team_red_zone_count}
+  - Department understaffing: {understaffing_percentage}%
+  - Recent patient safety incidents: {recent_incidents}
+  
+  SHIFT PATTERN:
+  {shift_pattern_summary}
+  
+  RECENT ANOMALIES:
+  {recent_anomalies}
+  
+  Provide correlation analysis with specific patient safety risk assessment.
+
+inputs:
+  - name: "stress_level"
+    type: "integer"
+    required: true
+    description: "Current stress level (1-10)"
+    validation:
+      min: 1
+      max: 10
+  
+  - name: "consecutive_shifts"
+    type: "integer"
+    required: true
+    description: "Number of consecutive shifts worked"
+    validation:
+      min: 0
+      max: 20
+  
+  - name: "red_zone_count"
+    type: "integer"
+    required: true
+    description: "Number of red zone days in last 7 days"
+    validation:
+      min: 0
+      max: 7
+  
+  - name: "sleep_deficit_hours"
+    type: "number"
+    required: true
+    description: "Cumulative sleep deficit in hours"
+    validation:
+      min: 0
+      max: 100
+  
+  - name: "crisis_alert_count"
+    type: "integer"
+    required: false
+    description: "Number of crisis alerts in last 30 days"
+    default: 0
+  
+  - name: "avg_shift_hours"
+    type: "number"
+    required: true
+    description: "Average shift length in hours"
+    validation:
+      min: 4
+      max: 16
+  
+  - name: "days_since_break"
+    type: "integer"
+    required: true
+    description: "Days since last day off"
+    validation:
+      min: 0
+      max: 30
+  
+  - name: "team_red_zone_count"
+    type: "integer"
+    required: false
+    description: "Number of other team members in red zone"
+    default: 0
+  
+  - name: "understaffing_percentage"
+    type: "number"
+    required: false
+    description: "Department understaffing percentage"
+    default: 0
+  
+  - name: "recent_incidents"
+    type: "integer"
+    required: false
+    description: "Recent patient safety incidents"
+    default: 0
+  
+  - name: "shift_pattern_summary"
+    type: "string"
+    required: false
+    description: "Summary of recent shift patterns"
+    default: "Standard rotation"
+  
+  - name: "recent_anomalies"
+    type: "string"
+    required: false
+    description: "Recent anomaly detection results"
+    default: "No significant anomalies detected"
+
+outputs:
+  - name: "correlation_score"
+    type: "number"
+    description: "Overall burnout-safety correlation (0.0-1.0)"
+  
+  - name: "risk_level"
+    type: "string"
+    description: "Patient safety risk level"
+    enum: ["low", "moderate", "high", "critical"]
+  
+  - name: "primary_risk_factors"
+    type: "array"
+    description: "Main factors contributing to risk"
+  
+  - name: "patient_safety_concerns"
+    type: "array"
+    description: "Specific patient safety concerns identified"
+  
+  - name: "high_risk_periods"
+    type: "array"
+    description: "Timeframes with elevated risk"
+  
+  - name: "recommendations"
+    type: "array"
+    description: "Actionable recommendations for risk mitigation"
+  
+  - name: "confidence"
+    type: "number"
+    description: "Confidence in correlation analysis (0.0-1.0)"
+
+test_cases:
+  - name: "Critical risk - high stress + sleep deficit"
+    inputs:
+      stress_level: 9
+      consecutive_shifts: 5
+      red_zone_count: 4
+      sleep_deficit_hours: 15
+      avg_shift_hours: 12.5
+      days_since_break: 6
+      team_red_zone_count: 2
+      understaffing_percentage: 25
+      recent_incidents: 1
+    expected_outputs:
+      risk_level: "critical"
+      correlation_score: ">0.8"
+  
+  - name: "High risk - multiple red zones + team stress"
+    inputs:
+      stress_level: 8
+      consecutive_shifts: 4
+      red_zone_count: 3
+      sleep_deficit_hours: 12
+      avg_shift_hours: 11
+      days_since_break: 5
+      team_red_zone_count: 3
+      understaffing_percentage: 30
+    expected_outputs:
+      risk_level: "high"
+      correlation_score: ">0.65"
+  
+  - name: "Moderate risk - elevated stress but manageable"
+    inputs:
+      stress_level: 7
+      consecutive_shifts: 3
+      red_zone_count: 2
+      sleep_deficit_hours: 8
+      avg_shift_hours: 10
+      days_since_break: 3
+      team_red_zone_count: 1
+      understaffing_percentage: 15
+    expected_outputs:
+      risk_level: "moderate"
+      correlation_score: "0.4-0.65"
+  
+  - name: "Low risk - healthy metrics"
+    inputs:
+      stress_level: 4
+      consecutive_shifts: 2
+      red_zone_count: 0
+      sleep_deficit_hours: 2
+      avg_shift_hours: 8.5
+      days_since_break: 1
+      team_red_zone_count: 0
+      understaffing_percentage: 5
+    expected_outputs:
+      risk_level: "low"
+      correlation_score: "<0.3"
+  
+  - name: "System-level risk - multiple workers compromised"
+    inputs:
+      stress_level: 8
+      consecutive_shifts: 4
+      red_zone_count: 3
+      sleep_deficit_hours: 10
+      avg_shift_hours: 11
+      days_since_break: 4
+      team_red_zone_count: 4
+      understaffing_percentage: 35
+      recent_incidents: 2
+    expected_outputs:
+      risk_level: "critical"
+      correlation_score: ">0.85"
+      recommendations_include: "immediate staffing intervention"
+
+error_handling:
+  fallback_response:
+    correlation_score: 0.5
+    risk_level: "moderate"
+    primary_risk_factors: ["Insufficient data for accurate correlation"]
+    patient_safety_concerns: 
+      - type: "general_risk"
+        likelihood: "moderate"
+        reasoning: "Unable to perform detailed correlation analysis due to data limitations"
+    recommendations:
+      - priority: "recommended"
+        action: "Collect comprehensive burnout and safety metrics for accurate analysis"
+        expected_impact: "Enable data-driven safety interventions"
+    confidence: 0.3
+  
+  max_retries: 2
+  timeout_seconds: 15
+
+metadata:
+  category: "patient_safety"
+  tags: ["correlation", "patient_safety", "risk_assessment", "burnout_analysis"]
+  integration_points:
+    - "SafeShiftIndexCalculation"
+    - "AnomalyDetection"
+    - "BurnoutAlertCreation"
+    - "StaffingRecommendations"
+  data_sources:
+    - "Shift history"
+    - "Stress level tracking"
+    - "Zone classifications"
+    - "Patient safety incident reports"
+  output_consumers:
+    - "InsightComposerAgent"
+    - "Admin dashboard"
+    - "Staffing coordinator"

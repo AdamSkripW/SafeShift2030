@@ -2,7 +2,7 @@
   <div class="navbar-container">
     <!-- Logo/Brand -->
     <div class="navbar-brand">
-      <a routerLink="/dashboard" class="brand-link">
+      <a [routerLink]="isManager() ? '/employees' : '/dashboard'" class="brand-link">
         <span class="brand-icon">🏥</span>
         <span class="brand-text">SafeShift 2030</span>
       </a>
@@ -10,18 +10,29 @@
 
     <!-- Desktop Navigation -->
     <div class="navbar-menu">
-      <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
-        <span class="nav-icon">📊</span>
-        Dashboard
-      </a>
-      <a routerLink="/shifts" routerLinkActive="active" class="nav-link">
-        <span class="nav-icon">📋</span>
-        My Shifts
-      </a>
-      <a routerLink="/shift/new" routerLinkActive="active" class="nav-link nav-link-primary">
-        <span class="nav-icon">➕</span>
-        New Shift
-      </a>
+      <!-- Manager Navigation -->
+      <ng-container *ngIf="isManager()">
+        <a routerLink="/employees" routerLinkActive="active" class="nav-link">
+          <span class="nav-icon">👥</span>
+          Employees
+        </a>
+      </ng-container>
+      
+      <!-- Regular User Navigation -->
+      <ng-container *ngIf="!isManager()">
+        <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+          <span class="nav-icon">📊</span>
+          Dashboard
+        </a>
+        <a routerLink="/shifts" routerLinkActive="active" class="nav-link">
+          <span class="nav-icon">📋</span>
+          My Shifts
+        </a>
+        <a routerLink="/shift/new" routerLinkActive="active" class="nav-link nav-link-primary">
+          <span class="nav-icon">➕</span>
+          New Shift
+        </a>
+      </ng-container>
     </div>
 
     <!-- User Profile -->
@@ -34,7 +45,11 @@
         <span class="user-role">{{ currentUser.Role }}</span>
       </div>
       <button class="logout-btn" (click)="logout()" title="Logout">
-        🚪
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
       </button>
     </div>
 
@@ -46,18 +61,29 @@
 
   <!-- Mobile Menu -->
   <div class="mobile-menu" [class.open]="mobileMenuOpen">
-    <a routerLink="/dashboard" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
-      <span class="nav-icon">📊</span>
-      Dashboard
-    </a>
-    <a routerLink="/shifts" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
-      <span class="nav-icon">📋</span>
-      My Shifts
-    </a>
-    <a routerLink="/shift/new" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
-      <span class="nav-icon">➕</span>
-      New Shift
-    </a>
+    <!-- Manager Navigation -->
+    <ng-container *ngIf="isManager()">
+      <a routerLink="/employees" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
+        <span class="nav-icon">👥</span>
+        Employees
+      </a>
+    </ng-container>
+    
+    <!-- Regular User Navigation -->
+    <ng-container *ngIf="!isManager()">
+      <a routerLink="/dashboard" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
+        <span class="nav-icon">📊</span>
+        Dashboard
+      </a>
+      <a routerLink="/shifts" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
+        <span class="nav-icon">📋</span>
+        My Shifts
+      </a>
+      <a routerLink="/shift/new" routerLinkActive="active" class="mobile-nav-link" (click)="toggleMobileMenu()">
+        <span class="nav-icon">➕</span>
+        New Shift
+      </a>
+    </ng-container>
     <div class="mobile-user-info" *ngIf="currentUser">
       <div class="user-details">
         <span class="user-name">{{ currentUser.FirstName }} {{ currentUser.LastName }}</span>

@@ -1,0 +1,122 @@
+name: "MicroBreakCoachAgent"
+description: "Generates 2-5 minute micro-break interventions for stressed healthcare workers"
+model: "gpt-4o-mini"
+temperature: 0.5
+response_format: "json_object"
+
+inputs:
+  stress_level:
+    type: "integer"
+    required: true
+    description: "Current stress level 1-10"
+  
+  minutes_available:
+    type: "integer"
+    required: true
+    description: "How many minutes available (2, 3, or 5)"
+  
+  location:
+    type: "string"
+    required: true
+    description: "Where they are: break_room, hallway, nurses_station, bathroom, outside"
+  
+  shift_type:
+    type: "string"
+    required: false
+    description: "Day or Night shift (affects energy recommendations)"
+
+system: |
+  You are MicroBreakCoachAgent. Generate a quick, practical micro-break intervention for a healthcare worker.
+  
+  Consider:
+  - Limited time (2-5 minutes)
+  - Limited privacy (hospital setting)
+  - Professional attire (scrubs, uniform)
+  - High stress environment
+  - Need for immediate stress relief
+  
+  Return ONLY valid JSON with this structure:
+  {
+    "name": "Brief name for the break",
+    "duration_minutes": <exact minutes from input>,
+    "location_fit": "Confirmed location or suggest better option",
+    "steps": ["Step 1 instruction", "Step 2 instruction", "..."],
+    "why": "Brief physiological/psychological explanation",
+    "expected_stress_reduction": <1-3, where 1=small, 2=moderate, 3=significant>
+  }
+  
+  RULES:
+  - Keep steps simple and doable in work attire
+  - Maximum 5 steps
+  - Each step should be ONE clear action
+  - No equipment needed (or only phone/water bottle)
+  - Consider minimal privacy (coworkers may see)
+  - Focus on breathing, grounding, movement, or mindfulness
+  - Language should be encouraging but practical
+  - No medical advice or diagnosis
+  - Adjust for stress level: higher stress = simpler, more grounding techniques
+  - Night shifts: avoid high-energy activities that make sleep harder later
+
+required_keys:
+  - name
+  - duration_minutes
+  - location_fit
+  - steps
+  - why
+  - expected_stress_reduction
+
+test_cases:
+  - name: "High stress, 2 minutes, hallway"
+    inputs:
+      stress_level: 8
+      minutes_available: 2
+      location: "hallway"
+      shift_type: "night"
+    expected:
+      duration_minutes: 2
+      steps_count: 3-4
+      stress_reduction: 2
+      
+  - name: "Moderate stress, 5 minutes, break room"
+    inputs:
+      stress_level: 5
+      minutes_available: 5
+      location: "break_room"
+      shift_type: "day"
+    expected:
+      duration_minutes: 5
+      steps_count: 4-5
+      stress_reduction: 2
+      
+  - name: "Low stress, 3 minutes, outside"
+    inputs:
+      stress_level: 3
+      minutes_available: 3
+      location: "outside"
+      shift_type: "day"
+    expected:
+      duration_minutes: 3
+      steps_count: 3-4
+      stress_reduction: 1
+      
+  - name: "Critical stress, 5 minutes, bathroom"
+    inputs:
+      stress_level: 10
+      minutes_available: 5
+      location: "bathroom"
+      shift_type: "night"
+    expected:
+      duration_minutes: 5
+      steps_count: 4-5
+      stress_reduction: 3
+      
+  - name: "Mild stress, 2 minutes, nurses_station"
+    inputs:
+      stress_level: 4
+      minutes_available: 2
+      location: "nurses_station"
+      shift_type: "day"
+    expected:
+      duration_minutes: 2
+      steps_count: 3
+      stress_reduction: 1
