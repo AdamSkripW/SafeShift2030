@@ -38,7 +38,17 @@ export class NewShiftComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Redirect managers to employees page
+    const userJson = localStorage.getItem('currentUser');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      if (user.Department === 'Management') {
+        this.router.navigate(['/employees']);
+        return;
+      }
+    }
+  }
 
   /**
    * Get today's date in YYYY-MM-DD format

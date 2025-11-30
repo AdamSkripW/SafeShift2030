@@ -49,4 +49,11 @@ export class NavbarComponent implements OnInit {
       this.router.navigate(['/start']);
     }
   }
+
+  /**
+   * Check if user is a manager
+   */
+  isManager(): boolean {
+    return this.currentUser?.Department === 'Management';
+  }
 }

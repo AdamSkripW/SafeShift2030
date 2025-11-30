@@ -18,6 +18,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/shifts-dashboard/shifts-dashboard.component').then(m => m.ShiftsDashboardComponent)
   },
   {
+    path: 'employees',
+    loadComponent: () => import('./components/employees/employees.component').then(m => m.EmployeesComponent)
+  },
+  {
     path: '',
     redirectTo: '/start',
     pathMatch: 'full'
