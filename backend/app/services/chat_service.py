@@ -308,8 +308,9 @@ Pre medicínske otázky odporúčam kontaktovať:
             bot_response = response.choices[0].message.content
             print(f"[CHAT] ✓ Response received ({response.usage.total_tokens} tokens)")
             
-            # Generate quick suggestions based on context
-            suggestions = self._generate_suggestions(user_context, user_message)
+            # Generate quick suggestions based on context AND bot response
+            suggestions = self._generate_suggestions(user_context, user_message, bot_response)
+            print(f"[CHAT] Generated suggestions: {suggestions}")
             
             return {
                 'response': bot_response,
@@ -342,46 +343,133 @@ Pre medicínske otázky odporúčam kontaktovať:
                 'requires_escalation': False
             }
     
-    def _generate_suggestions(self, user_context: Dict[str, Any], user_message: str) -> List[str]:
+    def _generate_suggestions(self, user_context: Dict[str, Any], user_message: str, bot_response: str = "") -> List[str]:
         """
-        Generate quick reply suggestions based on context
+        Generate contextual quick reply suggestions
+        Adapts based on: user context, current message, and bot's response
         
         Args:
-            user_context: User context data
-            user_message: Current user message
+            user_context: User context data (zone, stress, sleep, etc.)
+            user_message: Current user message to analyze for context
+            bot_response: Bot's response to analyze for follow-up suggestions
         
         Returns:
-            List of suggestion strings
+            List of 3 contextual suggestion strings
         """
         suggestions = []
+        user_message_lower = user_message.lower()
+        bot_response_lower = bot_response.lower()
         
-        # If in red zone, suggest recovery
-        if user_context.get('current_zone') == 'red':
-            suggestions.append("Ako môžem zlepšiť môj index?")
-            suggestions.append("Potrebujem tipy na recovery")
+        print(f"[SUGGESTIONS] Generating for user_msg: '{user_message[:30]}...', bot_msg: '{bot_response[:30]}...'")
         
-        # If high stress
+        # Track which priority matched
+        matched_priority = None
+        
+        # PRIORITY 1: Based on bot's response (most relevant follow-ups)
+        if any(word in bot_response_lower for word in ['safeshift index', 'index', 'skóre', 'zóna', 'zone']):
+            suggestions.extend(["Ako môžem zlepšiť môj index?", "Čo znamená červená zóna?"])
+            matched_priority = "bot_index"
+            
+        elif any(word in bot_response_lower for word in ['spánok', 'sleep', 'odpočinok', 'rest', 'hodín spať']):
+            suggestions.extend(["Koľko hodín spánku potrebujem?", "Rady pre lepší spánok"])
+            matched_priority = "bot_sleep"
+            
+        elif any(word in bot_response_lower for word in ['stres', 'stress', 'nápätie', 'tension', 'relaxácia']):
+            suggestions.extend(["Ako znížiť stres?", "Ukáž mi recovery tips"])
+            matched_priority = "bot_stress"
+            
+        elif any(word in bot_response_lower for word in ['burnout', 'vyčerpanie', 'únava', 'exhaustion', 'vyhorel', 'prediction']):
+            suggestions.extend(["Ako sa vyhnúť burnoutu?", "Prečo mám high burnout risk?"])
+            matched_priority = "bot_burnout"
+            
+        elif any(word in bot_response_lower for word in ['recovery', 'tip', 'rada', 'odporúčanie', 'zotavenie']):
+            suggestions.extend(["Daj mi viac recovery tips", "Ako sa rýchlo zotaviť?"])
+            matched_priority = "bot_recovery"
+            
+        elif any(word in bot_response_lower for word in ['alert', 'upozornenie', 'varovanie', 'warning', 'červená']):
+            suggestions.extend(["Čo robiť pri red zone?", "Vysvetli moje alerty"])
+            matched_priority = "bot_alerts"
+            
+        elif any(word in bot_response_lower for word in ['formulár', 'form', 'vyplniť', 'zadať', 'zmena']):
+            suggestions.extend(["Ako vyplniť post-shift formulár?", "Čo sa stane po odoslaní?"])
+            matched_priority = "bot_form"
+            
+        elif any(word in bot_response_lower for word in ['tím', 'team', 'benchmark', 'kolegovia', 'porovnanie']):
+            suggestions.extend(["Ako sa porovnávam s tímom?", "Čo je team benchmark?"])
+            matched_priority = "bot_team"
+            
+        elif any(word in bot_response_lower for word in ['emotion', 'emócie', 'analysis', 'analýza', 'pocit']):
+            suggestions.extend(["Ako funguje emotion analysis?", "Prečo AI vidí negatívne emócie?"])
+            matched_priority = "bot_emotions"
+        
+        print(f"[SUGGESTIONS] Matched priority: {matched_priority}, suggestions so far: {len(suggestions)}")
+        
+        # PRIORITY 2: Based on user's message content
+        if len(suggestions) < 2:
+            if any(word in user_message_lower for word in ['stres', 'stress', 'únava', 'vyčerpaný', 'exhausted']):
+                if "Aké sú najlepšie techniky relaxácie?" not in suggestions:
+                    suggestions.append("Aké sú najlepšie techniky na zvládanie stresu?")
+                if "Potrebujem prestávku - čo odporúčaš?" not in suggestions:
+                    suggestions.append("Potrebujem prestávku - čo odporúčaš?")
+                
+            elif any(word in user_message_lower for word in ['spánok', 'sleep', 'unavený', 'tired', 'nespím']):
+                if "Ako zlepšiť kvalitu spánku?" not in suggestions:
+                    suggestions.append("Ako zlepšiť kvalitu spánku?")
+                if "Koľko hodín spánku potrebujem?" not in suggestions:
+                    suggestions.append("Koľko hodín spánku potrebujem?")
+        
+        # PRIORITY 3: Based on current user state
         latest_shift = user_context.get('latest_shift', {})
-        if latest_shift.get('stress_level', 0) >= 7:
-            suggestions.append("Pomôž mi s manažmentom stresu")
+        current_zone = user_context.get('current_zone', 'unknown')
         
-        # If low sleep
-        if latest_shift.get('hours_slept', 8) < 6:
-            suggestions.append("Rady pre lepší spánok")
+        if len(suggestions) < 2:
+            # If in red zone - urgent suggestions
+            if current_zone == 'red':
+                if "Ako môžem zlepšiť môj index?" not in suggestions:
+                    suggestions.append("Ako môžem zlepšiť môj index?")
+                if "Potrebujem okamžité rady na recovery" not in suggestions:
+                    suggestions.append("Potrebujem okamžité rady na recovery")
+            
+            # If high stress level
+            elif latest_shift.get('stress_level', 0) >= 7:
+                if "Techniky na zníženie stresu" not in suggestions:
+                    suggestions.append("Techniky na zníženie stresu")
+            
+            # If low sleep
+            elif latest_shift.get('hours_slept', 8) < 6:
+                if "Rady pre lepší spánok" not in suggestions:
+                    suggestions.append("Rady pre lepší spánok")
+            
+            # If unresolved alerts
+            elif user_context.get('unresolved_alerts', 0) > 0:
+                if "Vysvetli moje aktuálne alerty" not in suggestions:
+                    suggestions.append("Vysvetli moje aktuálne alerty")
         
-        # If unresolved alerts
-        if user_context.get('unresolved_alerts', 0) > 0:
-            suggestions.append("Čo znamenajú moje alerty?")
+        # PRIORITY 4: Smart default suggestions (contextual fallbacks)
+        default_suggestions = [
+            "Ako vyplniť formulár po zmene?",
+            "Čo znamená môj SafeShift Index?",
+            "Ukáž mi recovery tips",
+            "Prečo mám high burnout prediction?",
+            "Ako funguje emotion analysis?",
+            "Ako sa porovnávam s kolegami?",
+            "Čo robiť pri red zone?",
+            "Vysvetli mi AI insights",
+            "Ako zlepšiť môj wellness skóre?",
+            "Čo vidí správca nemocnice v dashboarde?"
+        ]
         
-        # General helpful suggestions
-        if not suggestions:
-            suggestions = [
-                "Vysvetli mi môj SafeShift index",
-                "Ako používať aplikáciu?",
-                "Potrebujem podporu"
-            ]
+        # Fill up to 3 suggestions with unique defaults
+        while len(suggestions) < 3:
+            for default in default_suggestions:
+                if default not in suggestions and len(suggestions) < 3:
+                    suggestions.append(default)
+                    break
+            else:
+                break  # No more defaults to add
         
-        return suggestions[:3]  # Return max 3 suggestions
+        print(f"[SUGGESTIONS] Final suggestions: {suggestions}")
+        return suggestions[:3]  # Always return exactly 3 suggestions
     
     def detect_language(self, message: str) -> str:
         """
