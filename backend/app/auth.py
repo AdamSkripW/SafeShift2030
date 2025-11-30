@@ -5,11 +5,26 @@ Consolidated auth functionality in the app directory
 
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, decode_token as jwt_decode_token
 from datetime import timedelta, datetime
 from app.models import db, User
 
 auth_bp = Blueprint('auth', __name__)
+
+# ============================================
+# TOKEN UTILITIES
+# ============================================
+def decode_token(token):
+    """Decode JWT token and return payload"""
+    try:
+        decoded = jwt_decode_token(token)
+        return {
+            'user_id': decoded.get('sub'),  # 'sub' is the standard JWT claim for subject (user_id)
+            'exp': decoded.get('exp')
+        }
+    except Exception as e:
+        print(f"[TOKEN_DECODE] Error decoding token: {str(e)}")
+        return None
 
 # ============================================
 # SESSION MANAGEMENT UTILITIES
