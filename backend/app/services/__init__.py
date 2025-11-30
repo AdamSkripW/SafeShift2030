@@ -27,7 +27,8 @@ from app.services.agents import (
     MicroBreakCoachAgent,
     PatientSafetyCorrelationAgent,
     EmotionClassifierAgent,
-    InsightComposerAgent
+    InsightComposerAgent,
+    ShiftRecommendationAgent
 )
 from app.services.agent_metrics_service import AgentMetricsService
 from app.services.agent_orchestrator import AgentOrchestrator
@@ -53,6 +54,7 @@ __all__ = [
     'PatientSafetyCorrelationAgent',
     'EmotionClassifierAgent',
     'InsightComposerAgent',
+    'ShiftRecommendationAgent',
     'AgentMetricsService',
     'AgentOrchestrator',
     'AlertManagerService',

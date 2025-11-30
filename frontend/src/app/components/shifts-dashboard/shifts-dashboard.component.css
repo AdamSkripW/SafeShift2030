@@ -186,6 +186,13 @@
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
   position: relative;
+  border: 2px solid transparent;
+}
+
+.shift-card.recommended {
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.08) 0%, rgba(168, 85, 247, 0.05) 100%);
+  border: 2px solid rgba(155, 89, 182, 0.4);
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.2);
 }
 
 .shift-card:hover {
@@ -193,9 +200,18 @@
   box-shadow: 0 4px 12px var(--shadow-hover);
 }
 
+.shift-card.recommended:hover {
+  box-shadow: 0 6px 16px rgba(155, 89, 182, 0.3);
+}
+
 .shift-card.selected {
   border: 2px solid var(--primary);
   box-shadow: 0 4px 16px rgba(0, 123, 255, 0.3);
+}
+
+.shift-card.recommended.selected {
+  border: 2px solid #9b59b6;
+  box-shadow: 0 4px 16px rgba(155, 89, 182, 0.4);
 }
 
 .shift-header {
@@ -212,6 +228,18 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.ai-badge {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(155, 89, 182, 0.3);
 }
 
 .shift-icon {

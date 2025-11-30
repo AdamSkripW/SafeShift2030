@@ -82,6 +82,7 @@
         <div 
           class="shift-card" 
           [class.selected]="shift.ShiftId === selectedShiftId"
+          [class.recommended]="shift.IsRecommended"
           *ngFor="let shift of shifts"
           (click)="viewShiftDetails(shift)"
         >
@@ -89,6 +90,7 @@
             <div class="shift-date">
               <span class="shift-icon">{{ getShiftTypeIcon(shift.ShiftType) }}</span>
               <span>{{ formatDate(shift.ShiftDate) }}</span>
+              <span class="ai-badge" *ngIf="shift.IsRecommended">🤖 AI</span>
             </div>
             <button 
               class="delete-btn" 

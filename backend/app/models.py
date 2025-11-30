@@ -125,11 +125,12 @@ class Shift(db.Model):
     UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId', ondelete='CASCADE'), nullable=False, index=True)
     ShiftDate = db.Column(db.Date, nullable=False)
     HoursSleptBefore = db.Column(db.Integer, nullable=False)
-    ShiftType = db.Column(db.Enum('day', 'night', name='shift_type_enum'), nullable=False)
+    ShiftType = db.Column(db.Enum('day', 'night', 'rest', name='shift_type_enum'), nullable=False)
     ShiftLengthHours = db.Column(db.Integer, nullable=False)
     PatientsCount = db.Column(db.Integer, nullable=False)
     StressLevel = db.Column(db.Integer, nullable=False)
     ShiftNote = db.Column(db.Text)
+    IsRecommended = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     SafeShiftIndex = db.Column(db.Integer, nullable=False, default=0)
     Zone = db.Column(db.Enum('green', 'yellow', 'red', name='shift_zone_enum'), nullable=False, default='green')
@@ -158,6 +159,7 @@ class Shift(db.Model):
             'PatientsCount': self.PatientsCount,
             'StressLevel': self.StressLevel,
             'ShiftNote': self.ShiftNote,
+            'IsRecommended': self.IsRecommended if hasattr(self, 'IsRecommended') else False,
             'SafeShiftIndex': self.SafeShiftIndex,
             'Zone': self.Zone,
             'AiExplanation': self.AiExplanation,

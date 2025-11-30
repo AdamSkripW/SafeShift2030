@@ -423,4 +423,29 @@ export class ShiftService {
     }
     return this.http.get<Shift>(`${this.apiUrl}/latest`);
   }
+
+  /**
+   * Get AI-powered shift recommendations for next 3-7 days
+   */
+  getShiftRecommendations(userId: number, days: number = 7): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/recommendations/${userId}`, {
+      params: { days: days.toString() }
+    }).pipe(
+      map(response => {
+        // Ensure success flag exists
+        if (!response.hasOwnProperty('success')) {
+          response.success = true;
+        }
+        return response;
+      })
+    );
+  }
+
+  /**
+   * Generate AI-recommended shifts and create actual shift records in database
+   * These shifts are pre-filled and marked with IsRecommended=True
+   */
+  generateRecommendedShifts(userId: number, days: number = 7): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/generate-recommended/${userId}`, { days });
+  }
 }

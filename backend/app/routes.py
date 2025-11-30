@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.models import db, User, Hospital, HospitalAdmin, Shift, TimeOffRequest, BurnoutAlert, Session, ChatLog
+from app.models import db, User, Hospital, HospitalAdmin, Shift, TimeOffRequest, BurnoutAlert, Session
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
@@ -794,6 +794,210 @@ def delete_shift(shift_id):
 
 
 # ============================================
+# SHIFT RECOMMENDATION ENDPOINT
+# ============================================
+@api_bp.route('/shifts/recommendations/<int:user_id>', methods=['GET'])
+def get_shift_recommendations(user_id):
+    """
+    Get summary of AI-recommended shifts from database
+    Returns the recommendation metadata (recovery_priority, key_recommendations, etc.)
+    from the most recent shift generation
+    
+    Query params:
+        - days: Number of days (ignored, kept for compatibility)
+    
+    Returns:
+        - recommended_schedule: Array of recommended shifts from database
+        - recovery_priority, key_recommendations, predicted_burnout_trend
+    """
+    try:
+        # Check if user exists
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        # Get recommended shifts from database
+        recommended_shifts = Shift.query.filter_by(
+            UserId=user_id,
+            IsRecommended=True
+        ).order_by(Shift.ShiftDate.asc()).all()
+        
+        if not recommended_shifts:
+            return jsonify({
+                'success': True,
+                'recommended_schedule': [],
+                'recovery_priority': 'low',
+                'key_recommendations': ['No recommendations generated yet. Click "Generate AI Shifts" to create them.'],
+                'predicted_burnout_trend': 'stable'
+            }), 200
+        
+        # Build response from database shifts
+        schedule = []
+        for shift in recommended_shifts:
+            schedule.append({
+                'date': shift.ShiftDate.strftime('%Y-%m-%d'),
+                'shift_type': shift.ShiftType,
+                'recommended_hours': shift.ShiftLengthHours,
+                'max_patients': shift.PatientsCount,
+                'reasoning': shift.AiExplanation or 'AI-generated shift',
+                'risk_level': 'low' if shift.Zone == 'green' else ('medium' if shift.Zone == 'yellow' else 'high')
+            })
+        
+        # Try to get metadata from AgentInsights of first shift
+        metadata = {
+            'recovery_priority': 'medium',
+            'key_recommendations': ['Review and adjust recommended shifts as needed'],
+            'predicted_burnout_trend': 'stable'
+        }
+        
+        if recommended_shifts[0].AgentInsights:
+            try:
+                insights = json.loads(recommended_shifts[0].AgentInsights) if isinstance(recommended_shifts[0].AgentInsights, str) else recommended_shifts[0].AgentInsights
+                metadata['recovery_priority'] = insights.get('recovery_priority', 'medium')
+                metadata['key_recommendations'] = insights.get('key_recommendations', metadata['key_recommendations'])
+                metadata['predicted_burnout_trend'] = insights.get('predicted_burnout_trend', 'stable')
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'recommended_schedule': schedule,
+            **metadata
+        }), 200
+        
+    except Exception as e:
+        print(f"[SHIFT_RECOMMENDATIONS] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/shifts/generate-recommended/<int:user_id>', methods=['POST'])
+def generate_recommended_shifts(user_id):
+    """
+    Generate AI-recommended shifts and create actual shift records in database
+    These shifts are pre-filled with optimal parameters and marked with IsRecommended=True
+    """
+    from app.models import db, Shift, User
+    from datetime import datetime, timedelta
+    
+    try:
+        # Parse request
+        data = request.get_json() or {}
+        days = int(data.get('days', 7))
+        
+        if days < 1 or days > 14:
+            return jsonify({
+                'success': False,
+                'error': 'Days must be between 1 and 14'
+            }), 400
+        
+        # Check if user exists
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        print(f"[GENERATE_SHIFTS] Creating recommended shifts for user {user_id}, days: {days}")
+        
+        # Delete any existing recommended shifts for this user
+        deleted = Shift.query.filter_by(UserId=user_id, IsRecommended=True).delete()
+        print(f"[GENERATE_SHIFTS] Deleted {deleted} old recommended shifts")
+        
+        # Get orchestrator and generate predictions
+        orchestrator = get_orchestrator()
+        predictions = orchestrator.predict_optimal_shifts(user_id, days_ahead=days)
+        
+        print(f"[GENERATE_SHIFTS] Predictions result: success={predictions.get('success')}, keys={list(predictions.keys())}")
+        
+        if not predictions.get('success'):
+            return jsonify(predictions), 500
+        
+        recommended_schedule = predictions.get('recommended_schedule', [])
+        print(f"[GENERATE_SHIFTS] Got {len(recommended_schedule)} day predictions")
+        
+        if len(recommended_schedule) > 0:
+            print(f"[GENERATE_SHIFTS] First day sample: {recommended_schedule[0]}")
+        else:
+            print(f"[GENERATE_SHIFTS] WARNING: Empty schedule! Full predictions: {predictions}")
+        
+        # Create shift records
+        created_shifts = []
+        for day_prediction in recommended_schedule:
+            print(f"[GENERATE_SHIFTS] Processing day: {day_prediction.get('date')}")
+            # Parse date
+            shift_date = datetime.strptime(day_prediction['date'], '%Y-%m-%d').date()
+            
+            # Create shift record with AI-recommended values
+            new_shift = Shift(
+                UserId=user_id,
+                ShiftDate=shift_date,
+                HoursSleptBefore=day_prediction.get('recommended_sleep_hours', 8),
+                ShiftType=day_prediction.get('shift_type', 'day'),
+                ShiftLengthHours=day_prediction.get('recommended_shift_length', 8),
+                PatientsCount=day_prediction.get('max_patients', 6),
+                StressLevel=5,  # Neutral starting point
+                ShiftNote=f"AI Recommended: {day_prediction.get('primary_focus', 'Optimal shift schedule')}",
+                IsRecommended=True,
+                SafeShiftIndex=0,  # Will be calculated on first update
+                Zone='green',
+                AiExplanation=day_prediction.get('explanation', ''),
+                AiTips='\n'.join(day_prediction.get('tips', [])),
+                AgentInsights={
+                    'risk_level': day_prediction.get('risk_level', 'low'),
+                    'recovery_priority': predictions.get('recovery_priority', 'medium'),
+                    'consecutive_days': day_prediction.get('consecutive_days', 0),
+                    'generated_at': datetime.utcnow().isoformat()
+                }
+            )
+            
+            db.session.add(new_shift)
+            created_shifts.append({
+                'date': day_prediction['date'],
+                'shift_type': new_shift.ShiftType,
+                'shift_length': new_shift.ShiftLengthHours,
+                'recommended_sleep': new_shift.HoursSleptBefore,
+                'risk_level': day_prediction.get('risk_level')
+            })
+        
+        # Commit all shifts
+        db.session.commit()
+        print(f"[GENERATE_SHIFTS] Created {len(created_shifts)} recommended shifts in database")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Generated {len(created_shifts)} recommended shifts',
+            'created_shifts': created_shifts,
+            'recovery_priority': predictions.get('recovery_priority'),
+            'predicted_burnout_trend': predictions.get('predicted_burnout_trend'),
+            'key_recommendations': predictions.get('key_recommendations', [])
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request parameters'
+        }), 400
+    except Exception as e:
+        db.session.rollback()
+        print(f"[GENERATE_SHIFTS] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================
 # VOICE DICTATION ENDPOINT
 # ============================================
 @api_bp.route('/shifts/parse-voice', methods=['POST'])
@@ -1526,177 +1730,4 @@ def enhanced_crisis_detection():
 
 # ============================================
 # END AGENT ENDPOINTS
-# ============================================
-
-
-# ============================================
-# CHAT ENDPOINT (AI Assistant)
-# ============================================
-@api_bp.route('/chat', methods=['POST'])
-def chat_with_assistant():
-    """
-    Chat with AI wellness assistant
-    Context-aware chatbot with safety filters and crisis detection
-    """
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data or 'message' not in data or 'userId' not in data:
-            return jsonify({
-                'success': False,
-                'error': 'Missing required fields: message, userId'
-            }), 400
-        
-        user_message = data['message']
-        user_id = data['userId']
-        conversation_history = data.get('history', [])
-        
-        print(f"[CHAT] Processing message from user {user_id}: {user_message[:50]}...")
-        
-        # Load user context from database
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({
-                'success': False,
-                'error': 'User not found'
-            }), 404
-        
-        print(f"[CHAT] User found: {user.FirstName} {user.LastName}")
-        
-        # Get latest shifts (last 5 shifts only)
-        recent_shifts = Shift.query.filter_by(UserId=user_id)\
-            .order_by(Shift.ShiftDate.desc())\
-            .limit(5)\
-            .all()
-        
-        print(f"[CHAT] Found {len(recent_shifts)} recent shifts")
-        
-        latest_shift = recent_shifts[0] if recent_shifts else None
-        
-        # Get unresolved alerts
-        unresolved_alerts = BurnoutAlert.query.filter_by(
-            UserId=user_id,
-            IsResolved=False
-        ).count()
-        
-        # Count consecutive shifts
-        consecutive_shifts = _count_consecutive_shifts(user_id, days=7)
-        
-        # Build user context
-        user_context = {
-            'user_name': user.FirstName,
-            'role': user.Role,
-            'department': user.Department,
-            'hospital': user.Hospital,
-            'current_zone': latest_shift.Zone if latest_shift else 'unknown',
-            'safeshift_index': latest_shift.SafeShiftIndex if latest_shift else 0,
-            'unresolved_alerts': unresolved_alerts,
-            'recent_zones': [s.Zone for s in recent_shifts],
-            'consecutive_shifts': consecutive_shifts,
-            'latest_shift': {
-                'date': latest_shift.ShiftDate.isoformat() if latest_shift else None,
-                'hours_slept': latest_shift.HoursSleptBefore if latest_shift else None,
-                'shift_type': latest_shift.ShiftType if latest_shift else None,
-                'shift_length': latest_shift.ShiftLengthHours if latest_shift else None,
-                'stress_level': latest_shift.StressLevel if latest_shift else None
-            } if latest_shift else None,
-            'agent_insights': latest_shift.AgentInsights if latest_shift and latest_shift.AgentInsights else None
-        }
-        
-        # Initialize ChatService
-        chat_service = ChatService()
-        
-        print(f"[CHAT] Generating AI response...")
-        
-        # Generate response
-        result = chat_service.generate_response(
-            user_message=user_message,
-            user_context=user_context,
-            conversation_history=conversation_history
-        )
-        
-        print(f"[CHAT] AI response generated successfully")
-        
-        # Log conversation to database
-        try:
-            chat_log = ChatLog(
-                UserId=user_id,
-                UserMessage=user_message,
-                BotResponse=result.get('response', ''),
-                CrisisDetected=result.get('crisis_detected', False),
-                SafetyFiltered=result.get('content_filtered', False) or result.get('out_of_scope', False),
-                RequiresEscalation=result.get('requires_escalation', False),
-                Language=chat_service.detect_language(user_message),
-                TokensUsed=result.get('tokens_used'),
-                ContextUsed=result.get('context_used', False)
-            )
-            db.session.add(chat_log)
-            db.session.commit()
-        except Exception as log_error:
-            # Logging error shouldn't break the response
-            print(f"[CHAT] Error logging conversation: {log_error}")
-            import traceback
-            traceback.print_exc()
-        
-        # If crisis detected, create critical alert
-        if result.get('requires_escalation'):
-            try:
-                alert = BurnoutAlert(
-                    UserId=user_id,
-                    AlertType='crisis_detection',
-                    Severity='critical',
-                    Description=f"Crisis detected in chat: {user_message[:100]}",
-                    IsResolved=False
-                )
-                db.session.add(alert)
-                db.session.commit()
-                print(f"[CHAT] ⚠️ CRISIS ALERT created for user {user_id}")
-            except Exception as alert_error:
-                print(f"[CHAT] Error creating crisis alert: {alert_error}")
-        
-        return jsonify({
-            'success': True,
-            'response': result.get('response'),
-            'suggestions': result.get('suggestions', []),
-            'crisis_detected': result.get('crisis_detected', False),
-            'requires_escalation': result.get('requires_escalation', False)
-        }), 200
-    
-    except Exception as e:
-        print(f"[CHAT] Error in chat endpoint: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@api_bp.route('/chat/history/<int:user_id>', methods=['GET'])
-def get_chat_history(user_id):
-    """Get chat history for a user"""
-    try:
-        # Get last N messages
-        limit = request.args.get('limit', 50, type=int)
-        
-        chat_logs = ChatLog.query.filter_by(UserId=user_id)\
-            .order_by(ChatLog.CreatedAt.desc())\
-            .limit(limit)\
-            .all()
-        
-        return jsonify({
-            'success': True,
-            'data': [log.to_dict() for log in chat_logs],
-            'count': len(chat_logs)
-        }), 200
-    
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-# ============================================
-# END CHAT ENDPOINTS
 # ============================================

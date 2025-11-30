@@ -5,6 +5,7 @@ Manages data flow between agents and implements intelligent agent chaining
 
 import json
 from typing import Dict, List, Any, Optional
+from datetime import datetime, timedelta, date
 from app.services import (
     CrisisDetectionAgent,
     MicroBreakCoachAgent,
@@ -22,6 +23,7 @@ class AgentOrchestrator:
     1. Emotion → Crisis (preprocessing pipeline)
     2. Safety + Break → Insight (analysis synthesis)
     3. Full pipeline (all agents → comprehensive insight)
+    4. Shift prediction (7-day optimal schedule)
     """
     
     def __init__(self):
@@ -31,6 +33,17 @@ class AgentOrchestrator:
         self.safety_agent = PatientSafetyCorrelationAgent()
         self.break_agent = MicroBreakCoachAgent()
         self.insight_agent = InsightComposerAgent()
+        
+        # Lazy load prediction agent (only when needed)
+        self._prediction_agent = None
+    
+    @property
+    def prediction_agent(self):
+        """Lazy initialization of ShiftRecommendationAgent"""
+        if self._prediction_agent is None:
+            from app.services.agents import ShiftRecommendationAgent
+            self._prediction_agent = ShiftRecommendationAgent()
+        return self._prediction_agent
     
     def analyze_shift_note(self, shift_note: str, shift_data: Dict, 
                           user_id: int = None, shift_id: int = None) -> Dict[str, Any]:
@@ -336,4 +349,153 @@ class AgentOrchestrator:
             "patient_safety": safety_result,
             "workflow": "enhanced_crisis_detection",
             "orchestrator_version": "1.0.0"
+        }
+    
+    # ============================================
+    # SHIFT PREDICTION WORKFLOW
+    # ============================================
+    
+    def predict_optimal_shifts(self, user_id: int, days_ahead: int = 7) -> Dict[str, Any]:
+        """
+        Predict optimal shift schedule for next N days
+        
+        Args:
+            user_id: User ID to generate predictions for
+            days_ahead: Number of days to predict (1-14, default 7)
+        
+        Returns:
+            Dict with recommended_schedule, recovery_priority, key_recommendations, predicted_burnout_trend
+        """
+        from app.models import Shift, BurnoutAlert, User
+        
+        # Get user
+        user = User.query.get(user_id)
+        user_name = f"{user.FirstName} {user.LastName}" if user else None
+        
+        # Get historical shifts (last 30 days for analysis, return last 14 for LLM)
+        recent_shifts = Shift.query.filter_by(UserId=user_id)\
+            .order_by(Shift.ShiftDate.desc())\
+            .limit(30).all()
+        
+        # Handle new users with no historical data
+        if not recent_shifts:
+            print(f"[ORCHESTRATOR] No historical shifts for user {user_id}, generating baseline recommendations")
+            # Call prediction agent with minimal context for new users
+            result = self.prediction_agent.predict_optimal_shifts(
+                user_id=user_id,
+                historical_shifts=[],
+                consecutive_shifts=0,
+                sleep_deficit_hours=0,
+                avg_stress_7d=0,
+                stress_trend="stable",
+                active_alerts=0,
+                days_ahead=days_ahead,
+                user_name=user_name
+            )
+            result['success'] = True
+            return result
+        
+        # Calculate metrics
+        consecutive = self._count_consecutive_shifts(recent_shifts)
+        sleep_deficit = self._calculate_sleep_deficit(recent_shifts)
+        avg_stress = self._calculate_avg_stress(recent_shifts[:7])
+        stress_trend = self._get_stress_trend(recent_shifts[:14])
+        
+        # Get active alerts
+        active_alerts = BurnoutAlert.query.filter_by(
+            UserId=user_id,
+            IsResolved=False
+        ).count()
+        
+        # Build shift summaries for LLM
+        historical_summaries = [self._shift_summary(s) for s in recent_shifts[:14]]
+        
+        # Call prediction agent
+        result = self.prediction_agent.predict_optimal_shifts(
+            user_id=user_id,
+            historical_shifts=historical_summaries,
+            consecutive_shifts=consecutive,
+            sleep_deficit_hours=sleep_deficit,
+            avg_stress_7d=avg_stress,
+            stress_trend=stress_trend,
+            active_alerts=active_alerts,
+            days_ahead=days_ahead,
+            user_name=user_name
+        )
+        
+        result['success'] = True
+        return result
+    
+    def _count_consecutive_shifts(self, shifts: List) -> int:
+        """Count consecutive working days from most recent"""
+        if not shifts:
+            return 0
+        
+        # Sort by date descending
+        sorted_shifts = sorted(shifts, key=lambda s: s.ShiftDate, reverse=True)
+        
+        consecutive = 1
+        for i in range(len(sorted_shifts) - 1):
+            delta = (sorted_shifts[i].ShiftDate - sorted_shifts[i+1].ShiftDate).days
+            if delta == 1:
+                consecutive += 1
+            else:
+                break
+        
+        return consecutive
+    
+    def _calculate_sleep_deficit(self, shifts: List, target_hours: float = 7.0, days: int = 14) -> float:
+        """Calculate total sleep deficit over last N days"""
+        if not shifts:
+            return 0.0
+        
+        recent = shifts[:days]
+        total_deficit = sum(max(0, target_hours - s.HoursSleptBefore) for s in recent)
+        return round(total_deficit, 1)
+    
+    def _calculate_avg_stress(self, shifts: List) -> float:
+        """Calculate average stress level"""
+        if not shifts:
+            return 5.0
+        
+        total_stress = sum(s.StressLevel for s in shifts if s.StressLevel is not None)
+        count = len([s for s in shifts if s.StressLevel is not None])
+        
+        if count == 0:
+            return 5.0
+        
+        return round(total_stress / count, 1)
+    
+    def _get_stress_trend(self, shifts: List) -> str:
+        """Determine if stress is increasing, stable, or decreasing"""
+        if not shifts or len(shifts) < 4:
+            return "stable"
+        
+        # Sort by date ascending
+        sorted_shifts = sorted(shifts, key=lambda s: s.ShiftDate)
+        
+        # Compare first half vs second half average
+        mid = len(sorted_shifts) // 2
+        first_half_avg = sum(s.StressLevel for s in sorted_shifts[:mid] if s.StressLevel) / mid
+        second_half_avg = sum(s.StressLevel for s in sorted_shifts[mid:] if s.StressLevel) / (len(sorted_shifts) - mid)
+        
+        diff = second_half_avg - first_half_avg
+        
+        if diff > 1.0:
+            return "increasing"
+        elif diff < -1.0:
+            return "decreasing"
+        else:
+            return "stable"
+    
+    def _shift_summary(self, shift) -> Dict[str, Any]:
+        """Create concise shift summary for LLM"""
+        return {
+            "date": shift.ShiftDate.isoformat(),
+            "type": shift.ShiftType,
+            "hours": shift.ShiftLengthHours,
+            "sleep_before": shift.HoursSleptBefore,
+            "stress": shift.StressLevel,
+            "zone": shift.Zone,
+            "patients": shift.PatientsCount
         }

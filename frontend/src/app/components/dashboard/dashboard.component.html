@@ -139,6 +139,12 @@
           <button class="btn-link" (click)="viewAllShifts()">View All →</button>
         </div>
 
+        <!-- Loading Agent Insights -->
+        <div class="loading-insights" *ngIf="latestShift && !latestShift.AgentInsights && !latestShift.AiExplanation">
+          <div class="spinner-small"></div>
+          <span class="loading-text">Loading AI insights...</span>
+        </div>
+
         <div class="insight-card">
           <div class="insight-header">
             <div class="insight-date">
@@ -254,6 +260,97 @@
           </div>
 
         </div>
+
+        <!-- AI Shift Recommendations (Future Shifts) - Shown UNDER Latest Shift Insight -->
+        <div class="future-shifts-section" *ngIf="!loadingRecommendations && recommendations && recommendations.success && recommendations.recommended_schedule?.length > 0">
+          <div class="section-subheader">
+            <h3>📅 AI-Recommended Future Shifts</h3>
+            <button class="btn-link-small" (click)="toggleRecommendations()">
+              {{ showRecommendations ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+
+          <!-- Recovery Priority Alert -->
+          <div class="recovery-alert" [ngClass]="getRecoveryPriorityBadge(recommendations.recovery_priority)" *ngIf="showRecommendations">
+            <div class="alert-icon">
+              {{ recommendations.recovery_priority === 'urgent' ? '🚨' :
+                 recommendations.recovery_priority === 'high' ? '⚠️' :
+                 recommendations.recovery_priority === 'medium' ? 'ℹ️' : '✅' }}
+            </div>
+            <div class="alert-content">
+              <strong>Recovery Priority: {{ recommendations.recovery_priority | titlecase }}</strong>
+              <p>{{ recommendations.key_recommendations?.[0] || 'Continue monitoring your wellness patterns' }}</p>
+            </div>
+          </div>
+
+          <!-- Schedule Grid -->
+          <div class="schedule-grid" *ngIf="showRecommendations">
+            <div *ngFor="let day of recommendations.recommended_schedule" 
+                 class="schedule-day-card"
+                 [ngClass]="getShiftTypeBadge(day.shift_type)">
+              <div class="day-header">
+                <strong>{{ day.date | date: 'MMM dd, EEE' }}</strong>
+                <span class="shift-type-badge" [ngClass]="getShiftTypeBadge(day.shift_type)">
+                  {{ day.shift_type === 'rest' ? '🛌 Rest' : 
+                     day.shift_type === 'night' ? '🌙 Night' : '☀️ Day' }}
+                </span>
+              </div>
+              
+              <div class="day-details" *ngIf="day.shift_type !== 'rest'">
+                <div class="detail-row">
+                  <span class="detail-label">Hours:</span>
+                  <span class="detail-value">{{ day.recommended_hours }}h</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Max Patients:</span>
+                  <span class="detail-value">{{ day.max_patients }}</span>
+                </div>
+              </div>
+
+              <div class="day-reasoning">
+                <small>{{ day.reasoning }}</small>
+              </div>
+
+              <div class="day-risk" [ngClass]="getRiskLevelClass(day.risk_level)">
+                <span class="risk-dot"></span>
+                {{ day.risk_level | titlecase }} Risk
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Recommendations -->
+          <div class="key-recommendations" *ngIf="showRecommendations && recommendations.key_recommendations">
+            <h4>💡 Key Recommendations</h4>
+            <ul>
+              <li *ngFor="let rec of recommendations.key_recommendations">{{ rec }}</li>
+            </ul>
+          </div>
+
+          <!-- Burnout Trend -->
+          <div class="burnout-trend" *ngIf="showRecommendations">
+            <span class="trend-label">Predicted Burnout Trend:</span>
+            <span class="trend-value" [ngClass]="{
+              'trend-improving': recommendations.predicted_burnout_trend === 'improving',
+              'trend-stable': recommendations.predicted_burnout_trend === 'stable',
+              'trend-worsening': recommendations.predicted_burnout_trend === 'worsening'
+            }">
+              {{ recommendations.predicted_burnout_trend === 'improving' ? '📈 Improving' :
+                 recommendations.predicted_burnout_trend === 'stable' ? '➡️ Stable' : '📉 Worsening' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Loading State for Recommendations -->
+        <div class="recommendations-loading" *ngIf="loadingRecommendations">
+          <div class="spinner-small"></div>
+          <p>Loading future shifts...</p>
+        </div>
+
+        <!-- Error State for Recommendations -->
+        <div class="recommendations-error" *ngIf="recommendationsError && !loadingRecommendations">
+          <div class="error-icon">⚠️</div>
+          <p>{{ recommendationsError }}</p>
+        </div>
       </div>
 
       <!-- Quick Actions -->
@@ -265,6 +362,11 @@
         <button class="action-card" (click)="viewAllShifts()">
           <span class="action-icon">📋</span>
           <span class="action-text">View All Shifts</span>
+        </button>
+        <button class="action-card action-card-ai" (click)="generateRecommendedShifts()" [disabled]="generatingShifts">
+          <span class="action-icon" *ngIf="!generatingShifts">🤖</span>
+          <div class="spinner-small" *ngIf="generatingShifts"></div>
+          <span class="action-text">{{ generatingShifts ? 'Generating...' : 'Generate AI Shifts' }}</span>
         </button>
       </div>
 
