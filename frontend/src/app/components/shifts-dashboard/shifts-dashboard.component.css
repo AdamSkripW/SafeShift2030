@@ -193,6 +193,11 @@
   box-shadow: 0 4px 12px var(--shadow-hover);
 }
 
+.shift-card.selected {
+  border: 2px solid var(--primary);
+  box-shadow: 0 4px 16px rgba(0, 123, 255, 0.3);
+}
+
 .shift-header {
   display: flex;
   justify-content: space-between;

@@ -22,7 +22,9 @@
 
     <!-- Latest Shift Summary -->
     <div class="latest-shift-card" *ngIf="!loading && latestShift">
-      <h2 class="card-title">Latest Shift</h2>
+      <h2 class="card-title">
+        {{ selectedShiftId && selectedShiftId !== shifts[0]?.ShiftId ? 'Selected Shift' : 'Latest Shift' }}
+      </h2>
       <div class="shift-summary">
         <div class="summary-row">
           <span class="summary-label">Date:</span>
@@ -79,6 +81,7 @@
       <div class="shifts-grid" *ngIf="shifts.length > 0">
         <div 
           class="shift-card" 
+          [class.selected]="shift.ShiftId === selectedShiftId"
           *ngFor="let shift of shifts"
           (click)="viewShiftDetails(shift)"
         >
