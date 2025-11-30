@@ -1,12 +1,12 @@
 <!-- Floating Chat Button -->
-<div class="chat-button" (click)="toggleChat()" [class.hidden]="isOpen">
+<div *ngIf="showChat" class="chat-button" (click)="toggleChat()" [class.hidden]="isOpen">
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
   </svg>
 </div>
 
 <!-- Chat Modal -->
-<div class="chat-modal" [class.open]="isOpen">
+<div *ngIf="showChat" class="chat-modal" [class.open]="isOpen">
   <div class="chat-header">
     <div class="header-content">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -37,6 +37,17 @@
         <div class="message-content">
           <p>{{ msg.text }}</p>
           <span class="timestamp">{{ msg.timestamp | date:'short' }}</span>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div *ngIf="isLoading" class="message bot-message">
+        <div class="message-content typing-indicator">
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
         </div>
       </div>
     </div>

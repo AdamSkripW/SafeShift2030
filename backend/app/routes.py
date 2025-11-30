@@ -1185,7 +1185,12 @@ def get_alerts():
     """Get all burnout alerts with summary"""
     try:
         user_id = request.args.get('user_id')
-        unresolved_only = request.args.get('unresolved') == 'true'
+        # Default to unresolved only when user_id is provided, unless explicitly set to 'false'
+        unresolved_param = request.args.get('unresolved')
+        if user_id and unresolved_param is None:
+            unresolved_only = True  # Default to unresolved for user queries
+        else:
+            unresolved_only = unresolved_param == 'true'
         
         query = BurnoutAlert.query
         if user_id:

@@ -1,7 +1,9 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { ChatService, ChatMessage } from '../../services/chat.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -28,6 +30,8 @@ export class ChatModalComponent implements OnInit, OnDestroy {
   askedQuestions: string[] = [];
   isLoading = false;
   isCrisis = false;
+  showChat = true;
+  private routerSubscription?: Subscription;
   
   quickStartQuestions: string[] = [
     '🔍 Čo znamená môj SafeShift Index?',
@@ -42,7 +46,8 @@ export class ChatModalComponent implements OnInit, OnDestroy {
     private chatService: ChatService,
     private authService: AuthService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -50,9 +55,27 @@ export class ChatModalComponent implements OnInit, OnDestroy {
     if (currentUser) {
       this.chatService.addWelcomeMessage(currentUser.FirstName);
     }
+
+    // Check initial route
+    this.updateChatVisibility(this.router.url);
+
+    // Subscribe to route changes
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: any) => {
+        this.updateChatVisibility(event.url);
+      });
   }
 
   ngOnDestroy() {
+    if (this.routerSubscription) {
+      this.routerSubscription.unsubscribe();
+    }
+  }
+
+  private updateChatVisibility(url: string): void {
+    // Hide chat on login/register page (start page)
+    this.showChat = !url.includes('/start');
   }
 
   toggleChat() {
@@ -95,6 +118,9 @@ export class ChatModalComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
       
     setTimeout(() => this.scrollToBottom(), 50);
+    
+    // Scroll again after typing indicator appears
+    setTimeout(() => this.scrollToBottom(), 100);
       
     this.chatService.sendMessage(userMessage).subscribe({
       next: (response) => {
