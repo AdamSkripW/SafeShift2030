@@ -8,11 +8,161 @@ import secrets
 from app.services import (
     SafeShiftService,
     AnomalyService,
-    LLMService
+    LLMService,
+    CrisisDetectionAgent,
+    MicroBreakCoachAgent,
+    PatientSafetyCorrelationAgent,
+    EmotionClassifierAgent,
+    InsightComposerAgent,
+    AgentMetricsService,
+    AgentOrchestrator
 )
+
+# Initialize AI agents lazily to ensure environment variables are loaded
+_crisis_agent = None
+_micro_break_agent = None
+_patient_safety_agent = None
+_emotion_agent = None
+_insight_agent = None
+_orchestrator = None
+
+def get_crisis_agent():
+    global _crisis_agent
+    if _crisis_agent is None:
+        _crisis_agent = CrisisDetectionAgent()
+    return _crisis_agent
+
+def get_micro_break_agent():
+    global _micro_break_agent
+    if _micro_break_agent is None:
+        _micro_break_agent = MicroBreakCoachAgent()
+    return _micro_break_agent
+
+def get_patient_safety_agent():
+    global _patient_safety_agent
+    if _patient_safety_agent is None:
+        _patient_safety_agent = PatientSafetyCorrelationAgent()
+    return _patient_safety_agent
+
+def get_emotion_agent():
+    global _emotion_agent
+    if _emotion_agent is None:
+        _emotion_agent = EmotionClassifierAgent()
+    return _emotion_agent
+
+def get_insight_agent():
+    global _insight_agent
+    if _insight_agent is None:
+        _insight_agent = InsightComposerAgent()
+    return _insight_agent
+
+def get_orchestrator():
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = AgentOrchestrator()
+    return _orchestrator
 
 main_bp = Blueprint('main', __name__)
 api_bp = Blueprint('api', __name__)
+
+# ============================================
+# HELPER FUNCTIONS FOR CRISIS DETECTION
+# ============================================
+def _get_recent_shift_zones(user_id, limit=3):
+    """Get recent shift zones for pattern detection"""
+    recent_shifts = Shift.query.filter_by(UserId=user_id)\
+        .order_by(Shift.ShiftDate.desc())\
+        .limit(limit)\
+        .all()
+    return [s.Zone for s in recent_shifts if s.Zone]
+
+def _get_stress_history(user_id, limit=5):
+    """Get recent stress levels"""
+    recent_shifts = Shift.query.filter_by(UserId=user_id)\
+        .order_by(Shift.ShiftDate.desc())\
+        .limit(limit)\
+        .all()
+    return [s.StressLevel for s in recent_shifts]
+
+def _count_unresolved_alerts(user_id):
+    """Count unresolved burnout alerts"""
+    return BurnoutAlert.query.filter_by(UserId=user_id, IsResolved=False).count()
+
+def _count_consecutive_shifts(user_id, days=7):
+    """Count consecutive shifts in last N days"""
+    cutoff_date = datetime.utcnow().date() - timedelta(days=days)
+    shifts = Shift.query.filter(
+        Shift.UserId == user_id,
+        Shift.ShiftDate >= cutoff_date
+    ).order_by(Shift.ShiftDate.desc()).all()
+    
+    if not shifts:
+        return 0
+    
+    consecutive_count = 1
+    for i in range(len(shifts) - 1):
+        delta = (shifts[i].ShiftDate - shifts[i+1].ShiftDate).days
+        if delta == 1:
+            consecutive_count += 1
+        else:
+            break
+    return consecutive_count
+
+def _count_red_zone_shifts(user_id, limit=10):
+    """Count red zone shifts in recent history"""
+    red_shifts = Shift.query.filter_by(UserId=user_id, Zone='red')\
+        .order_by(Shift.ShiftDate.desc())\
+        .limit(limit)\
+        .all()
+    return len(red_shifts)
+
+def _calculate_sleep_deficit(user_id, target_hours=7, limit=5):
+    """Calculate cumulative sleep deficit from recent shifts"""
+    recent_shifts = Shift.query.filter_by(UserId=user_id)\
+        .order_by(Shift.ShiftDate.desc())\
+        .limit(limit)\
+        .all()
+    
+    if not recent_shifts:
+        return 0
+    
+    total_deficit = sum(max(0, target_hours - s.HoursSleptBefore) for s in recent_shifts)
+    return total_deficit
+
+def _calculate_avg_shift_hours(user_id, limit=10):
+    """Calculate average shift length hours"""
+    recent_shifts = Shift.query.filter_by(UserId=user_id)\
+        .order_by(Shift.ShiftDate.desc())\
+        .limit(limit)\
+        .all()
+    
+    if not recent_shifts:
+        return 8  # Default
+    
+    total_hours = sum(s.ShiftLengthHours for s in recent_shifts)
+    return total_hours / len(recent_shifts)
+
+def _calculate_days_since_break(user_id):
+    """Calculate days since last day off (no shift)"""
+    # Get last 14 days of shifts
+    cutoff_date = datetime.utcnow().date() - timedelta(days=14)
+    shifts = Shift.query.filter(
+        Shift.UserId == user_id,
+        Shift.ShiftDate >= cutoff_date
+    ).order_by(Shift.ShiftDate.desc()).all()
+    
+    if not shifts:
+        return 0
+    
+    # Find first gap in consecutive days
+    for i in range(len(shifts) - 1):
+        delta = (shifts[i].ShiftDate - shifts[i+1].ShiftDate).days
+        if delta > 1:
+            # Found a gap (day off)
+            return (datetime.utcnow().date() - shifts[i].ShiftDate).days
+    
+    # No gap found - been working consecutively
+    return (datetime.utcnow().date() - shifts[-1].ShiftDate).days if shifts else 0
 
 # Main routes
 @main_bp.route('/')
@@ -35,7 +185,15 @@ def index():
             'shifts': '/api/shifts',
             'timeoff': '/api/timeoff',
             'alerts': '/api/alerts',
-            'sessions': '/api/sessions'
+            'sessions': '/api/sessions',
+            'agents': {
+                'metrics': '/api/agents/metrics',
+                'crisis_rate': '/api/agents/metrics/crisis-rate',
+                'user_history': '/api/agents/metrics/user/<user_id>',
+                'performance_issues': '/api/agents/metrics/performance-issues',
+                'high_risk_users': '/api/agents/metrics/high-risk-users',
+                'micro_break': '/api/agents/micro-break'
+            }
         }
     })
 
@@ -434,6 +592,85 @@ def create_shift():
         db.session.add(shift)
         db.session.commit()
         
+        # Run comprehensive orchestrated agent analysis
+        agent_insights = None
+        try:
+            # Get user context
+            user = User.query.get(data['UserId'])
+            user_name = f"{user.FirstName} {user.LastName}" if user else None
+            recent_zones = _get_recent_shift_zones(data['UserId'])
+            stress_history = _get_stress_history(data['UserId'])
+            previous_alerts = _count_unresolved_alerts(data['UserId'])
+            
+            # Calculate additional context
+            consecutive_shifts = _count_consecutive_shifts(data['UserId'])
+            red_zone_count = _count_red_zone_shifts(data['UserId'])
+            sleep_deficit = _calculate_sleep_deficit(data['UserId'])
+            avg_shift_hours = _calculate_avg_shift_hours(data['UserId'])
+            days_since_break = _calculate_days_since_break(data['UserId'])
+            
+            # Build comprehensive shift context
+            shift_context = {
+                'user_id': data['UserId'],
+                'shift_id': shift.ShiftId,
+                'user_name': user_name,
+                'safeshift_index': safe_shift_index,  # Fixed: orchestrator expects 'safeshift_index'
+                'current_zone': zone,  # Fixed: orchestrator expects 'current_zone'
+                'hours_slept': data['HoursSleptBefore'],
+                'shift_type': data['ShiftType'],
+                'shift_length': data['ShiftLengthHours'],
+                'patients_count': data['PatientsCount'],
+                'stress_level': data['StressLevel'],
+                'shift_note': data.get('ShiftNote'),
+                'consecutive_shifts': consecutive_shifts,
+                'red_zone_count': red_zone_count,
+                'sleep_deficit_hours': sleep_deficit,  # Fixed: was sleep_deficit
+                'avg_shift_hours': avg_shift_hours,
+                'days_since_break': days_since_break,
+                'team_red_zone_count': 0,  # TODO: Calculate team metrics if needed
+                'understaffing_percentage': 0,  # TODO: Calculate if staffing data available
+                'recent_incidents': 0,  # TODO: Track incidents if implemented
+                'recent_shifts': recent_zones,
+                'stress_history': stress_history,
+                'previous_alerts': previous_alerts
+            }
+            
+            # Run orchestrated comprehensive analysis
+            print(f"[ORCHESTRATION] Starting comprehensive analysis for shift {shift.ShiftId}...")
+            orchestration_result = get_orchestrator().generate_comprehensive_insight(shift_context)
+            print(f"[ORCHESTRATION] Result: success={orchestration_result.get('success')}, has_insight={'comprehensive_insight' in orchestration_result}")
+            
+            if orchestration_result.get('success') and orchestration_result.get('comprehensive_insight'):
+                agent_insights = orchestration_result['comprehensive_insight']
+                print(f"[ORCHESTRATION] ✓ Got insights with urgency: {agent_insights.get('urgency_level')}")
+                
+                # Save insights to shift record
+                shift.AgentInsights = agent_insights
+                db.session.commit()
+                print(f"[ORCHESTRATION] ✓ Saved insights to database")
+                
+                # Create alerts based on urgency level
+                urgency = agent_insights.get('urgency_level')
+                if urgency in ['urgent', 'critical']:
+                    alert = BurnoutAlert(
+                        UserId=data['UserId'],
+                        AlertType='comprehensive_analysis',
+                        Severity='high' if urgency == 'urgent' else 'critical',
+                        AlertMessage=agent_insights.get('summary', 'Comprehensive agent analysis flagged concern'),
+                        IsResolved=False
+                    )
+                    db.session.add(alert)
+                    db.session.commit()
+            else:
+                print(f"[ORCHESTRATION] ✗ No insights generated - success={orchestration_result.get('success')}")
+                    
+        except Exception as agent_error:
+            # Agent analysis is supplementary - don't fail the request
+            print(f"[ORCHESTRATION] ✗ ERROR: {agent_error}")
+            import traceback
+            traceback.print_exc()
+            agent_insights = None
+        
         # Run anomaly detection after shift is saved
         try:
             anomalies = AnomalyService.detect_anomalies(user_id=data['UserId'])
@@ -462,11 +699,17 @@ def create_shift():
             # Anomaly detection is supplementary - don't fail the whole request
             print(f"Anomaly detection error: {anomaly_error}")
         
-        return jsonify({
+        response_data = {
             'success': True,
             'message': 'Shift created successfully',
             'data': shift.to_dict()
-        }), 201
+        }
+        
+        # Include comprehensive agent insights if available
+        if agent_insights:
+            response_data['agent_insights'] = agent_insights
+        
+        return jsonify(response_data), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -823,11 +1066,318 @@ def delete_session(session_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# AGENT METRICS ENDPOINTS
+# ============================================
+@api_bp.route('/agents/metrics', methods=['GET'])
+def get_agent_metrics():
+    """Get agent performance metrics"""
     try:
-        item = Item.query.get_or_404(item_id)
-        db.session.delete(item)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Session deleted successfully'}), 200
+        agent_name = request.args.get('agent', 'crisis_detection')
+        days = int(request.args.get('days', 7))
+        
+        stats = AgentMetricsService.get_agent_stats(agent_name, days)
+        
+        return jsonify({
+            'success': True,
+            'agent': agent_name,
+            'period_days': days,
+            'data': stats
+        }), 200
     except Exception as e:
-        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/agents/metrics/crisis-rate', methods=['GET'])
+def get_crisis_rate():
+    """Get daily crisis detection rate"""
+    try:
+        days = int(request.args.get('days', 7))
+        
+        daily_stats = AgentMetricsService.get_daily_crisis_rate(days)
+        
+        return jsonify({
+            'success': True,
+            'period_days': days,
+            'data': daily_stats
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/agents/metrics/user/<int:user_id>', methods=['GET'])
+def get_user_crisis_history(user_id):
+    """Get crisis detection history for specific user"""
+    try:
+        days = int(request.args.get('days', 30))
+        
+        history = AgentMetricsService.get_user_crisis_history(user_id, days)
+        
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'period_days': days,
+            'data': history
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/agents/metrics/performance-issues', methods=['GET'])
+def get_performance_issues():
+    """Get slow or failed agent calls"""
+    try:
+        threshold_ms = int(request.args.get('threshold_ms', 5000))
+        
+        issues = AgentMetricsService.get_performance_issues(threshold_ms)
+        
+        return jsonify({
+            'success': True,
+            'threshold_ms': threshold_ms,
+            'data': issues
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/agents/metrics/high-risk-users', methods=['GET'])
+def get_high_risk_users():
+    """Get users with repeated crisis detections"""
+    try:
+        days = int(request.args.get('days', 7))
+        min_alerts = int(request.args.get('min_alerts', 2))
+        
+        high_risk = AgentMetricsService.get_high_risk_users(days, min_alerts)
+        
+        return jsonify({
+            'success': True,
+            'period_days': days,
+            'min_alerts': min_alerts,
+            'data': high_risk
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/agents/micro-break', methods=['POST'])
+def generate_micro_break():
+    """Generate personalized micro-break intervention"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        # Validate required fields
+        if 'stress_level' not in data or 'minutes_available' not in data or 'location' not in data:
+            return jsonify({
+                'success': False, 
+                'error': 'Required fields: stress_level, minutes_available, location'
+            }), 400
+        
+        result = get_micro_break_agent().generate_break(
+            stress_level=data.get('stress_level'),
+            minutes_available=data.get('minutes_available'),
+            location=data.get('location'),
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id'),
+            shift_type=data.get('shift_type')
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# NEW AGENT ENDPOINTS
+# ============================================
+
+@api_bp.route('/agents/emotion-classify', methods=['POST'])
+def classify_emotion():
+    """Classify emotions in shift note"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'shift_note' not in data:
+            return jsonify({'success': False, 'error': 'shift_note required'}), 400
+        
+        result = get_emotion_agent().classify(
+            shift_note=data['shift_note'],
+            shift_type=data.get('shift_type'),
+            shift_hours=data.get('shift_hours'),
+            stress_level=data.get('stress_level'),
+            recent_pattern=data.get('recent_pattern'),
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/agents/patient-safety-correlation', methods=['POST'])
+def analyze_patient_safety():
+    """Analyze correlation between burnout and patient safety"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required = ['stress_level', 'consecutive_shifts', 'red_zone_count', 
+                   'sleep_deficit_hours', 'avg_shift_hours', 'days_since_break']
+        missing = [f for f in required if f not in data]
+        if missing:
+            return jsonify({
+                'success': False, 
+                'error': f'Missing required fields: {", ".join(missing)}'
+            }), 400
+        
+        result = get_patient_safety_agent().analyze_correlation(
+            stress_level=data['stress_level'],
+            consecutive_shifts=data['consecutive_shifts'],
+            red_zone_count=data['red_zone_count'],
+            sleep_deficit_hours=data['sleep_deficit_hours'],
+            avg_shift_hours=data['avg_shift_hours'],
+            days_since_break=data['days_since_break'],
+            crisis_alert_count=data.get('crisis_alert_count', 0),
+            team_red_zone_count=data.get('team_red_zone_count', 0),
+            understaffing_percentage=data.get('understaffing_percentage', 0),
+            recent_incidents=data.get('recent_incidents', 0),
+            shift_pattern_summary=data.get('shift_pattern_summary'),
+            recent_anomalies=data.get('recent_anomalies'),
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/agents/comprehensive-analysis', methods=['POST'])
+def comprehensive_analysis():
+    """
+    Orchestrated multi-agent comprehensive analysis
+    Runs patient safety, micro-break, emotion, crisis, and insight agents
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required context fields
+        required = ['safeshift_index', 'current_zone', 'consecutive_shifts', 
+                   'days_since_break', 'stress_level', 'red_zone_count',
+                   'sleep_deficit_hours', 'avg_shift_hours']
+        missing = [f for f in required if f not in data]
+        if missing:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing)}'
+            }), 400
+        
+        result = get_orchestrator().generate_comprehensive_insight(
+            shift_context=data,
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id'),
+            audience=data.get('audience', 'both')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/agents/analyze-shift-note', methods=['POST'])
+def analyze_shift_note():
+    """
+    Orchestrated emotion → crisis workflow
+    Classifies emotions first, then runs crisis detection if flagged
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'shift_note' not in data:
+            return jsonify({'success': False, 'error': 'shift_note required'}), 400
+        
+        shift_data = {
+            'shift_type': data.get('shift_type'),
+            'shift_hours': data.get('shift_hours'),
+            'stress_level': data.get('stress_level'),
+            'stress_history': data.get('stress_history'),
+            'recent_shifts': data.get('recent_shifts'),
+            'previous_alerts': data.get('previous_alerts')
+        }
+        
+        result = get_orchestrator().analyze_shift_note(
+            shift_note=data['shift_note'],
+            shift_data=shift_data,
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/agents/quick-wellness', methods=['POST'])
+def quick_wellness():
+    """Quick wellness check - just generate micro-break"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'stress_level' not in data:
+            return jsonify({'success': False, 'error': 'stress_level required'}), 400
+        
+        result = get_orchestrator().quick_wellness_check(
+            stress_level=data['stress_level'],
+            minutes_available=data.get('minutes_available', 5),
+            location=data.get('location', 'hallway'),
+            shift_type=data.get('shift_type', 'day'),
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/agents/enhanced-crisis-detection', methods=['POST'])
+def enhanced_crisis_detection():
+    """
+    Enhanced crisis detection with emotion preprocessing and safety correlation
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'shift_note' not in data:
+            return jsonify({'success': False, 'error': 'shift_note required'}), 400
+        
+        user_context = {
+            'user_name': data.get('user_name'),
+            'shift_type': data.get('shift_type'),
+            'shift_hours': data.get('shift_hours'),
+            'stress_level': data.get('stress_level'),
+            'recent_shifts': data.get('recent_shifts'),
+            'stress_history': data.get('stress_history'),
+            'previous_alerts': data.get('previous_alerts'),
+            'consecutive_shifts': data.get('consecutive_shifts'),
+            'red_zone_count': data.get('red_zone_count'),
+            'sleep_deficit_hours': data.get('sleep_deficit_hours'),
+            'avg_shift_hours': data.get('avg_shift_hours'),
+            'days_since_break': data.get('days_since_break')
+        }
+        
+        result = get_orchestrator().detect_crisis_with_context(
+            shift_note=data['shift_note'],
+            user_context=user_context,
+            user_id=data.get('user_id'),
+            shift_id=data.get('shift_id')
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# END AGENT ENDPOINTS
+# ============================================
