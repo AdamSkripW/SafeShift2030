@@ -16,7 +16,7 @@ from app.services import (
     InsightComposerAgent,
     AgentMetricsService,
     AgentOrchestrator,
-    ChatService
+    ChatService,
     AlertManagerService
 )
 from app.services.voice_service import VoiceService
