@@ -11,19 +11,17 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
     
     # Initialize CORS
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": [
-                "http://localhost:4200",
-                "http://localhost:4200/*",
-                "https://victorious-tree-06f6b3803.3.azurestaticapps.net"
-            ],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    allowed_origins = [
+        "http://localhost:4200",
+        "https://victorious-tree-06f6b3803.3.azurestaticapps.net"
+    ]
+    
+    CORS(app, 
+         resources={r"/api/*": {"origins": allowed_origins}},
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"],
+         expose_headers=["Content-Type", "Authorization"],
+         supports_credentials=True)
     
     # Initialize JWT
     jwt = JWTManager(app)
