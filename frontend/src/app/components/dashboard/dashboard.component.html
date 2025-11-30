@@ -3,6 +3,9 @@
 <div class="dashboard-container">
   <div class="content-wrapper">
 
+    <!-- Alert Banner -->
+    <app-alert-banner></app-alert-banner>
+
     <!-- Loading State -->
     <div class="loading-state" *ngIf="loading">
       <div class="spinner"></div>
@@ -164,15 +167,92 @@
             </div>
           </div>
 
-          <div class="insight-ai" *ngIf="latestShift.AiExplanation">
-            <h4>Analysis</h4>
-            <p>{{ latestShift.AiExplanation }}</p>
+          <!-- AI Agent Insights (NEW!) -->
+          <div class="agent-insights-container" *ngIf="latestShift.AgentInsights">
+            
+            <!-- Urgency Banner -->
+            <div class="urgency-banner" [ngClass]="getUrgencyClass(latestShift.AgentInsights.urgency_level)">
+              <span class="urgency-icon">
+                {{ latestShift.AgentInsights.urgency_level === 'critical' ? '⚠️' : 
+                   latestShift.AgentInsights.urgency_level === 'urgent' ? '🔴' :
+                   latestShift.AgentInsights.urgency_level === 'attention_needed' ? '🟡' : '🟢' }}
+              </span>
+              <div class="urgency-content">
+                <span class="urgency-label">{{ latestShift.AgentInsights.urgency_level | titlecase }}</span>
+                <p class="urgency-summary">{{ latestShift.AgentInsights.summary }}</p>
+              </div>
+            </div>
+
+            <!-- Primary Insights -->
+            <div class="insights-grid" *ngIf="latestShift.AgentInsights.primary_insights?.length">
+              <h4 class="insights-heading">Key Insights</h4>
+              <div class="insight-cards">
+                <div 
+                  *ngFor="let insight of latestShift.AgentInsights.primary_insights" 
+                  class="insight-item"
+                  [class.high-priority]="insight.priority <= 2"
+                >
+                  <div class="insight-item-header">
+                    <span class="category-icon">{{ getCategoryIcon(insight.category) }}</span>
+                    <span class="category-label">{{ insight.category | titlecase }}</span>
+                    <span class="priority-badge" *ngIf="insight.priority <= 2">Priority {{ insight.priority }}</span>
+                  </div>
+                  <p class="insight-message">{{ insight.message }}</p>
+                  <p class="insight-supporting" *ngIf="insight.supporting_data">
+                    <small>{{ insight.supporting_data }}</small>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="recommendations-section" *ngIf="latestShift.AgentInsights.recommendations?.length">
+              <h4 class="insights-heading">Recommended Actions</h4>
+              <div class="recommendations-list">
+                <div 
+                  *ngFor="let rec of latestShift.AgentInsights.recommendations" 
+                  class="recommendation-item"
+                >
+                  <div class="recommendation-header">
+                    <span class="timing-badge" [ngClass]="getTimingClass(rec.timing)">
+                      {{ formatTiming(rec.timing) }}
+                    </span>
+                    <span class="source-agents" *ngIf="rec.source_agents?.length">
+                      <small>From: {{ rec.source_agents.join(', ') }}</small>
+                    </span>
+                  </div>
+                  <p class="recommendation-action">{{ rec.action }}</p>
+                  <p class="recommendation-benefit" *ngIf="rec.expected_benefit">
+                    <small>💡 {{ rec.expected_benefit }}</small>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nurse Message -->
+            <div class="message-box nurse-message" *ngIf="latestShift.AgentInsights.nurse_message">
+              <div class="message-header">
+                <span class="message-icon">💬</span>
+                <span class="message-label">Personal Message</span>
+              </div>
+              <p>{{ latestShift.AgentInsights.nurse_message }}</p>
+            </div>
+
           </div>
 
-          <div class="insight-ai" *ngIf="latestShift.AiTips">
-            <h4>Recommendations</h4>
-            <p style="white-space: pre-line;">{{ latestShift.AiTips }}</p>
+          <!-- Legacy AI Insights (fallback if AgentInsights not available) -->
+          <div *ngIf="!latestShift.AgentInsights">
+            <div class="insight-ai" *ngIf="latestShift.AiExplanation">
+              <h4>Analysis</h4>
+              <p>{{ latestShift.AiExplanation }}</p>
+            </div>
+
+            <div class="insight-ai" *ngIf="latestShift.AiTips">
+              <h4>Recommendations</h4>
+              <p style="white-space: pre-line;">{{ latestShift.AiTips }}</p>
+            </div>
           </div>
+
         </div>
       </div>
 

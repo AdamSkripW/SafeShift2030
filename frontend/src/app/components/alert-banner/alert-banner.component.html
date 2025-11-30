@@ -1,0 +1,68 @@
+<div class="alert-banner-container" *ngIf="summary && summary.total_active > 0">
+  <div class="alert-banner" [ngClass]="getBannerClass()">
+    <div class="alert-banner-header" (click)="toggleCollapse()">
+      <div class="alert-banner-summary">
+        <span class="alert-icon">🔔</span>
+        <div class="alert-counts">
+          <span class="alert-total">{{ summary.total_active }} Active Alert{{ summary.total_active !== 1 ? 's' : '' }}</span>
+          <span class="alert-breakdown" *ngIf="summary.by_severity.critical > 0">
+            <span class="critical-badge">{{ summary.by_severity.critical }} Critical</span>
+          </span>
+          <span class="alert-breakdown" *ngIf="summary.by_severity.high > 0">
+            <span class="high-badge">{{ summary.by_severity.high }} High</span>
+          </span>
+          <span class="alert-breakdown" *ngIf="summary.by_severity.medium > 0">
+            <span class="medium-badge">{{ summary.by_severity.medium }} Medium</span>
+          </span>
+        </div>
+      </div>
+      <button class="collapse-btn" [attr.aria-expanded]="!isCollapsed">
+        <span *ngIf="isCollapsed">▼</span>
+        <span *ngIf="!isCollapsed">▲</span>
+      </button>
+    </div>
+
+    <div class="alert-banner-content" *ngIf="!isCollapsed">
+      <div class="alert-list">
+        <div 
+          class="alert-item" 
+          *ngFor="let alert of getCriticalAndHighAlerts().slice(0, 5)"
+          [ngClass]="getSeverityClass(alert.Severity)">
+          <div class="alert-item-header">
+            <span class="alert-item-icon">{{ getAlertIcon(alert.AlertType) }}</span>
+            <div class="alert-item-info">
+              <div class="alert-item-title">
+                <span class="alert-type-label">{{ getAlertTypeLabel(alert.AlertType) }}</span>
+                <span class="severity-badge" [ngClass]="getSeverityClass(alert.Severity)">
+                  {{ alert.Severity }}
+                </span>
+              </div>
+              <div class="alert-item-message">{{ alert.AlertMessage || alert.Description }}</div>
+              <div class="alert-item-time">{{ formatDate(alert.CreatedAt) }}</div>
+            </div>
+          </div>
+          <button 
+            class="resolve-btn" 
+            (click)="resolveAlert(alert.Id, $event)"
+            title="Mark as resolved">
+            ✓
+          </button>
+        </div>
+
+        <div class="alert-footer" *ngIf="getCriticalAndHighAlerts().length > 5">
+          <span class="more-alerts">
+            +{{ getCriticalAndHighAlerts().length - 5 }} more critical/high alerts
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alert Resolution Modal -->
+<app-alert-resolution-modal
+  [alert]="selectedAlert"
+  [isOpen]="isModalOpen"
+  (close)="closeModal()"
+  (resolve)="onResolveAlert($event)">
+</app-alert-resolution-modal>

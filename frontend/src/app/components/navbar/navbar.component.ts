@@ -45,8 +45,17 @@ export class NavbarComponent implements OnInit {
 
   logout(): void {
     if (confirm('Are you sure you want to logout?')) {
-      this.authService.logout();
-      this.router.navigate(['/start']);
+      this.authService.logout().subscribe({
+        next: () => {
+          console.log('Logged out successfully');
+          this.router.navigate(['/start']);
+        },
+        error: (error) => {
+          console.error('Logout error:', error);
+          // Navigate anyway since local storage is cleared
+          this.router.navigate(['/start']);
+        }
+      });
     }
   }
 

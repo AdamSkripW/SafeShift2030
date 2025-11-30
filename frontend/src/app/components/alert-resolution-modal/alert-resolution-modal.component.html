@@ -1,0 +1,80 @@
+<div class="modal-overlay" *ngIf="isOpen" (click)="closeModal()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2 class="modal-title">Resolve Alert</h2>
+      <button class="close-btn" (click)="closeModal()">×</button>
+    </div>
+
+    <div class="modal-body" *ngIf="alert">
+      <!-- Alert Info -->
+      <div class="alert-info">
+        <div class="alert-info-type">
+          <span class="alert-info-icon">{{ getActionIcon(alert.AlertType) }}</span>
+          <span class="alert-info-text">{{ alert.AlertType.replace(/_/g, ' ') | titlecase }}</span>
+        </div>
+        <div class="alert-info-severity" [ngClass]="'severity-' + alert.Severity">
+          {{ alert.Severity }}
+        </div>
+      </div>
+
+      <div class="alert-message">
+        {{ alert.AlertMessage || alert.Description }}
+      </div>
+
+      <!-- Action Selection -->
+      <div class="form-section">
+        <label class="section-label">How would you like to resolve this alert?</label>
+        
+        <div class="action-options">
+          <div 
+            class="action-option" 
+            *ngFor="let option of actionOptions"
+            [class.selected]="selectedAction === option.value"
+            (click)="selectedAction = option.value">
+            <div class="action-option-header">
+              <input 
+                type="radio" 
+                [value]="option.value" 
+                [(ngModel)]="selectedAction"
+                [id]="'action-' + option.value">
+              <label [for]="'action-' + option.value" class="action-option-label">
+                {{ option.label }}
+              </label>
+            </div>
+            <p class="action-option-description">{{ option.description }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Time Off Info -->
+      <div class="info-box" *ngIf="selectedAction === 'time_off_requested'">
+        <span class="info-icon">ℹ️</span>
+        <div class="info-text">
+          <strong>Automatic Time Off Request</strong>
+          <p>A 3-day time off request will be created starting tomorrow with reason "Burnout Risk". You can edit it later in the Time Off section.</p>
+        </div>
+      </div>
+
+      <!-- Optional Note -->
+      <div class="form-section">
+        <label for="note" class="section-label">
+          Add a note (optional)
+          <span class="label-hint">Explain what steps you're taking or any additional context</span>
+        </label>
+        <textarea 
+          id="note"
+          class="note-textarea"
+          [(ngModel)]="resolutionNote"
+          placeholder="E.g., 'I've scheduled lighter shifts this week' or 'Planning to request time off soon'"
+          rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeModal()">Cancel</button>
+      <button class="btn-primary" (click)="onResolve()">
+        {{ getActionIcon(selectedAction) }} Resolve Alert
+      </button>
+    </div>
+  </div>
+</div>

@@ -130,7 +130,12 @@ class AgentOrchestrator:
         """
         agents_run = []
         
+        print(f"[ORCHESTRATOR] Starting comprehensive insight generation")
+        print(f"[ORCHESTRATOR] SafeShift Index: {shift_context['safeshift_index']}, Zone: {shift_context['current_zone']}")
+        print(f"[ORCHESTRATOR] Stress: {shift_context['stress_level']}, Has note: {bool(shift_context.get('shift_note'))}")
+        
         # Step 1: Patient Safety Correlation (always run)
+        print(f"[ORCHESTRATOR] Step 1: Running PatientSafetyCorrelation...")
         safety_result = self.safety_agent.analyze_correlation(
             stress_level=shift_context['stress_level'],
             consecutive_shifts=shift_context['consecutive_shifts'],
@@ -145,10 +150,12 @@ class AgentOrchestrator:
             shift_id=shift_id
         )
         agents_run.append("PatientSafetyCorrelation")
+        print(f"[ORCHESTRATOR] ✓ PatientSafetyCorrelation complete, risk: {safety_result.get('risk_level')}")
         
         # Step 2: Micro-Break (if stress >= 6)
         break_result = None
         if shift_context['stress_level'] >= 6:
+            print(f"[ORCHESTRATOR] Step 2: Running MicroBreakCoach (stress >= 6)...")
             break_result = self.break_agent.generate_break(
                 stress_level=shift_context['stress_level'],
                 minutes_available=shift_context.get('minutes_available', 5),
@@ -158,12 +165,16 @@ class AgentOrchestrator:
                 shift_id=shift_id
             )
             agents_run.append("MicroBreakCoach")
+            print(f"[ORCHESTRATOR] ✓ MicroBreakCoach complete")
+        else:
+            print(f"[ORCHESTRATOR] Step 2: Skipping MicroBreakCoach (stress < 6)")
         
         # Step 3: Emotion Classification (if shift_note exists)
         emotion_result = None
         crisis_result = None
         
         if shift_context.get('shift_note'):
+            print(f"[ORCHESTRATOR] Step 3: Running EmotionClassifier...")
             emotion_result = self.emotion_agent.classify(
                 shift_note=shift_context['shift_note'],
                 shift_type=shift_context.get('shift_type', 'unknown'),
@@ -173,9 +184,11 @@ class AgentOrchestrator:
                 shift_id=shift_id
             )
             agents_run.append("EmotionClassifier")
+            print(f"[ORCHESTRATOR] ✓ EmotionClassifier complete, crisis_flag: {emotion_result.get('crisis_flag')}")
             
             # Step 4: Crisis Detection (if emotion flags crisis)
             if emotion_result.get('crisis_flag'):
+                print(f"[ORCHESTRATOR] Step 4: Running CrisisDetection (emotion flagged crisis)...")
                 crisis_result = self.crisis_agent.detect(
                     shift_note=shift_context['shift_note'],
                     user_id=user_id,
@@ -185,8 +198,12 @@ class AgentOrchestrator:
                     previous_alerts=shift_context.get('previous_alerts', 0)
                 )
                 agents_run.append("CrisisDetection")
+                print(f"[ORCHESTRATOR] ✓ CrisisDetection complete, severity: {crisis_result.get('severity')}")
+        else:
+            print(f"[ORCHESTRATOR] Step 3-4: Skipping Emotion/Crisis (no shift note)")
         
         # Step 5: Insight Composer (synthesize all results)
+        print(f"[ORCHESTRATOR] Step 5: Running InsightComposer...")
         insight_result = self.insight_agent.compose(
             safeshift_index=shift_context['safeshift_index'],
             current_zone=shift_context['current_zone'],
@@ -203,6 +220,8 @@ class AgentOrchestrator:
             shift_id=shift_id
         )
         agents_run.append("InsightComposer")
+        print(f"[ORCHESTRATOR] ✓ InsightComposer complete, urgency: {insight_result.get('urgency_level')}")
+        print(f"[ORCHESTRATOR] ✓ All agents complete: {agents_run}")
         
         return {
             "patient_safety": safety_result,

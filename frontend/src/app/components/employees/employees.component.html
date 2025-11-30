@@ -143,6 +143,80 @@
             </div>
           </div>
 
+          <!-- Alerts Section -->
+          <div class="alerts-section" *ngIf="!loadingAlerts && selectedEmployee">
+            <h3 class="section-title">
+              <span class="alert-icon-title">🔔</span>
+              Active Alerts 
+              <span class="alert-count" *ngIf="alertSummary">({{ alertSummary.total_active }})</span>
+            </h3>
+
+            <!-- Loading Alerts -->
+            <div class="loading-state-small" *ngIf="loadingAlerts">
+              <div class="spinner-small"></div>
+              <p>Loading alerts...</p>
+            </div>
+
+            <!-- No Alerts -->
+            <div class="empty-state-small" *ngIf="!loadingAlerts && employeeAlerts.length === 0">
+              <div class="empty-icon-small">✅</div>
+              <p>No active alerts - All clear!</p>
+            </div>
+
+            <!-- Alert Summary Cards -->
+            <div class="alert-summary-grid" *ngIf="!loadingAlerts && alertSummary && alertSummary.total_active > 0">
+              <div class="alert-stat-card critical" *ngIf="alertSummary.by_severity.critical > 0">
+                <div class="alert-stat-icon">🚨</div>
+                <div class="alert-stat-content">
+                  <div class="alert-stat-value">{{ alertSummary.by_severity.critical }}</div>
+                  <div class="alert-stat-label">Critical</div>
+                </div>
+              </div>
+              <div class="alert-stat-card high" *ngIf="alertSummary.by_severity.high > 0">
+                <div class="alert-stat-icon">⚠️</div>
+                <div class="alert-stat-content">
+                  <div class="alert-stat-value">{{ alertSummary.by_severity.high }}</div>
+                  <div class="alert-stat-label">High</div>
+                </div>
+              </div>
+              <div class="alert-stat-card medium" *ngIf="alertSummary.by_severity.medium > 0">
+                <div class="alert-stat-icon">ℹ️</div>
+                <div class="alert-stat-content">
+                  <div class="alert-stat-value">{{ alertSummary.by_severity.medium }}</div>
+                  <div class="alert-stat-label">Medium</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alerts List -->
+            <div class="alerts-list" *ngIf="!loadingAlerts && employeeAlerts.length > 0">
+              <div 
+                class="alert-item-card" 
+                *ngFor="let alert of employeeAlerts"
+                [ngClass]="getSeverityClass(alert.Severity)">
+                <div class="alert-item-header">
+                  <span class="alert-item-icon">{{ getAlertIcon(alert.AlertType) }}</span>
+                  <div class="alert-item-info">
+                    <div class="alert-item-title">
+                      <span class="alert-type-text">{{ getAlertTypeLabel(alert.AlertType) }}</span>
+                      <span class="severity-badge-small" [ngClass]="getSeverityClass(alert.Severity)">
+                        {{ alert.Severity }}
+                      </span>
+                    </div>
+                    <div class="alert-item-message">{{ alert.AlertMessage || alert.Description }}</div>
+                    <div class="alert-item-time">{{ formatAlertDate(alert.CreatedAt) }}</div>
+                  </div>
+                </div>
+                <button 
+                  class="resolve-btn-small" 
+                  (click)="resolveEmployeeAlert(alert.Id)"
+                  title="Mark as resolved">
+                  ✓
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Latest Shift Summary -->
           <div class="latest-shift-card" *ngIf="!loadingShifts && latestShift">
             <h3 class="card-title">
@@ -255,3 +329,11 @@
 
   </div>
 </div>
+
+<!-- Alert Resolution Modal -->
+<app-alert-resolution-modal
+  [alert]="selectedAlert"
+  [isOpen]="isModalOpen"
+  (close)="closeModal()"
+  (resolve)="onResolveAlert($event)">
+</app-alert-resolution-modal>

@@ -84,3 +84,48 @@
 .action-text{font-size:16px;font-weight:600;color:var(--text-primary)}
 
 @media(max-width:768px){.dashboard-container{padding:16px}.welcome-header{flex-direction:column;align-items:flex-start}.welcome-header h1{font-size:24px}.btn-primary{width:100%}.stats-grid{grid-template-columns:repeat(2,1fr)}.chart-bars{gap:8px}.bar{max-width:40px}.bar-label{font-size:10px}.chart-legend{flex-direction:column;gap:12px}.graph-section,.insight-section{padding:20px}}
+
+/* Agent Insights Styling */
+.agent-insights-container{margin-top:24px;padding-top:24px;border-top:2px solid var(--border-color)}
+.urgency-banner{display:flex;align-items:flex-start;gap:16px;padding:16px;border-radius:8px;margin-bottom:24px;border-left:4px solid}
+.urgency-routine{background-color:#e6f7ed;border-left-color:#48bb78;color:#22543d}
+.urgency-attention{background-color:#fef5e7;border-left-color:#ecc94b;color:#744210}
+.urgency-urgent{background-color:#fff3e0;border-left-color:#ed8936;color:#7c2d12}
+.urgency-critical{background-color:#fee;border-left-color:#f56565;color:#742a2a}
+.urgency-icon{font-size:24px;line-height:1}
+.urgency-content{flex:1}
+.urgency-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px}
+.urgency-summary{font-size:15px;font-weight:500;margin:0;line-height:1.5}
+.insights-heading{font-size:14px;font-weight:600;color:var(--text-primary);margin:0 0 16px;text-transform:uppercase;letter-spacing:.5px}
+.insights-grid{margin-bottom:24px}
+.insight-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.insight-item{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:8px;padding:16px;transition:all .2s}
+.insight-item:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 4px 12px var(--shadow)}
+.insight-item.high-priority{border-left:3px solid var(--primary)}
+.insight-item-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.category-icon{font-size:20px}
+.category-label{font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px;flex:1}
+.priority-badge{font-size:10px;font-weight:700;color:var(--primary);background:var(--bg-tertiary);padding:4px 8px;border-radius:4px;text-transform:uppercase}
+.insight-message{font-size:14px;font-weight:500;color:var(--text-primary);margin:0 0 8px;line-height:1.5}
+.insight-supporting{margin:0}
+.insight-supporting small{font-size:12px;color:var(--text-tertiary);line-height:1.4}
+.recommendations-section{margin-bottom:24px}
+.recommendations-list{display:flex;flex-direction:column;gap:12px}
+.recommendation-item{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:8px;padding:14px;transition:border-color .2s}
+.recommendation-item:hover{border-color:var(--primary)}
+.recommendation-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.timing-badge{font-size:10px;font-weight:700;padding:4px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.5px}
+.timing-immediate{background-color:#fee;color:#c53030}
+.timing-today{background-color:#fef5e7;color:#c05621}
+.timing-week{background-color:#e6f7ff;color:#2c5282}
+.timing-ongoing{background-color:#e6f7ed;color:#276749}
+.source-agents{font-size:11px;color:var(--text-tertiary);flex:1}
+.recommendation-action{font-size:14px;font-weight:500;color:var(--text-primary);margin:0 0 6px;line-height:1.5}
+.recommendation-benefit{margin:0}
+.recommendation-benefit small{font-size:12px;color:var(--text-secondary);font-style:italic}
+.message-box{background:linear-gradient(135deg,var(--bg-primary) 0%,var(--bg-tertiary) 100%);border-radius:8px;padding:16px;border-left:4px solid var(--primary);margin-bottom:16px}
+.message-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.message-icon{font-size:18px}
+.message-label{font-size:12px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.5px}
+.message-box p{font-size:14px;color:var(--text-primary);margin:0;line-height:1.6}
+@media(max-width:768px){.insight-cards{grid-template-columns:1fr}.urgency-banner{flex-direction:column;gap:12px}.recommendation-header{flex-direction:column;align-items:flex-start;gap:6px}}

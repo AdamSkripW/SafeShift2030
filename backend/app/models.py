@@ -216,9 +216,20 @@ class BurnoutAlert(db.Model):
 
     AlertId = db.Column(db.Integer, primary_key=True)
     UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId', ondelete='CASCADE'), nullable=False, index=True)
-    AlertType = db.Column(db.Enum('chronic_low_sleep', 'consecutive_nights', 'high_stress_pattern', 'declining_health', name='alert_type_enum'), nullable=False)
+    AlertType = db.Column(db.Enum(
+        'chronic_low_sleep', 
+        'consecutive_nights', 
+        'high_stress_pattern', 
+        'declining_health',
+        'comprehensive_analysis',
+        'crisis_detected',
+        'patient_safety_risk',
+        'recovery_needed',
+        name='alert_type_enum'
+    ), nullable=False)
     Severity = db.Column(db.Enum('low', 'medium', 'high', 'critical', name='alert_severity_enum'), nullable=False)
-    Description = db.Column(db.Text)
+    AlertMessage = db.Column(db.Text)  # User-friendly short message
+    Description = db.Column(db.Text)   # Detailed description
     IsResolved = db.Column(db.Boolean, default=False)
     CreatedAt = db.Column(db.DateTime, default=datetime.utcnow)
     ResolvedAt = db.Column(db.DateTime, nullable=True)
@@ -236,6 +247,7 @@ class BurnoutAlert(db.Model):
             'UserId': self.UserId,
             'AlertType': self.AlertType,
             'Severity': self.Severity,
+            'AlertMessage': self.AlertMessage,
             'Description': self.Description,
             'IsResolved': self.IsResolved,
             'CreatedAt': self.CreatedAt.isoformat() if self.CreatedAt else None,
