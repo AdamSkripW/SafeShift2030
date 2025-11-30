@@ -5,13 +5,15 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { UserService } from '../../services/user.service';
 import { ShiftService } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
+import { AlertService, BurnoutAlert, AlertSummary } from '../../services/alert.service';
+import { AlertResolutionModalComponent } from '../alert-resolution-modal/alert-resolution-modal.component';
 import { User } from '../../models/user.model';
 import { Shift, Zone } from '../../models/shift.model';
 
 @Component({
   selector: 'app-employees',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, RouterModule, NavbarComponent, AlertResolutionModalComponent],
   templateUrl: './employees.component.html',
   styleUrls: ['./employees.component.css']
 })
@@ -19,17 +21,23 @@ export class EmployeesComponent implements OnInit {
   employees: User[] = [];
   selectedEmployee: User | null = null;
   employeeShifts: Shift[] = [];
+  employeeAlerts: BurnoutAlert[] = [];
+  alertSummary: AlertSummary | null = null;
   loading = true;
   loadingShifts = false;
+  loadingAlerts = false;
   errorMessage = '';
   currentUser: User | null = null;
   latestShift: Shift | null = null;
   selectedShiftId: number | null = null;
+  isModalOpen = false;
+  selectedAlert: BurnoutAlert | null = null;
 
   constructor(
     private userService: UserService,
     private shiftService: ShiftService,
     private authService: AuthService,
+    private alertService: AlertService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
@@ -79,6 +87,7 @@ export class EmployeesComponent implements OnInit {
   selectEmployee(employee: User): void {
     this.selectedEmployee = employee;
     this.loadEmployeeShifts(employee.UserId!);
+    this.loadEmployeeAlerts(employee.UserId!);
   }
 
   /**
@@ -206,11 +215,111 @@ export class EmployeesComponent implements OnInit {
   }
 
   /**
-   * Get percentage for zone
+   * Get zone percentage for zone
    */
   getZonePercentage(zone: 'green' | 'yellow' | 'red'): number {
     if (this.employeeShifts.length === 0) return 0;
     const distribution = this.getZoneDistribution();
     return Math.round((distribution[zone] / this.employeeShifts.length) * 100);
+  }
+
+  /**
+   * Load alerts for selected employee
+   */
+  loadEmployeeAlerts(userId: number): void {
+    this.loadingAlerts = true;
+    this.employeeAlerts = [];
+    this.alertSummary = null;
+
+    this.alertService.getAlerts(userId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.employeeAlerts = response.alerts.filter(a => !a.IsResolved);
+          this.alertSummary = response.summary;
+        }
+        this.loadingAlerts = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error loading employee alerts:', error);
+        this.loadingAlerts = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /**
+   * Resolve an alert
+   */
+  resolveEmployeeAlert(alertId: number): void {
+    const alert = this.employeeAlerts.find(a => a.Id === alertId);
+    if (alert) {
+      this.selectedAlert = alert;
+      this.isModalOpen = true;
+    }
+  }
+
+  closeModal(): void {
+    this.isModalOpen = false;
+    this.selectedAlert = null;
+  }
+
+  onResolveAlert(data: { action: string; note: string }): void {
+    if (!this.selectedAlert) return;
+
+    this.alertService.resolveAlert(this.selectedAlert.Id, data.action, data.note).subscribe({
+      next: () => {
+        // Refresh alerts after resolving
+        if (this.selectedEmployee?.UserId) {
+          this.loadEmployeeAlerts(this.selectedEmployee.UserId);
+        }
+      },
+      error: (error) => {
+        console.error('Error resolving alert:', error);
+      }
+    });
+  }
+
+  /**
+   * Get alert severity class
+   */
+  getSeverityClass(severity: string): string {
+    return this.alertService.getSeverityClass(severity);
+  }
+
+  /**
+   * Get alert type label
+   */
+  getAlertTypeLabel(alertType: string): string {
+    return this.alertService.getAlertTypeLabel(alertType);
+  }
+
+  /**
+   * Get alert icon
+   */
+  getAlertIcon(alertType: string): string {
+    return this.alertService.getAlertIcon(alertType);
+  }
+
+  /**
+   * Format alert date
+   */
+  formatAlertDate(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
   }
 }

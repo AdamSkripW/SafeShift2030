@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiUrl: 'https://safeshift-d4fkh6emczefbyhx.westeurope-01.azurewebsites.net/api'
+  apiUrl: 'http://localhost:5000/api'
 };

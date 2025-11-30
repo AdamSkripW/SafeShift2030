@@ -31,6 +31,7 @@ from app.services.agents import (
 )
 from app.services.agent_metrics_service import AgentMetricsService
 from app.services.agent_orchestrator import AgentOrchestrator
+from app.services.alert_manager_service import AlertManagerService
 
 __all__ = [
     # CRUD
@@ -54,4 +55,5 @@ __all__ = [
     'InsightComposerAgent',
     'AgentMetricsService',
     'AgentOrchestrator',
+    'AlertManagerService',
 ]

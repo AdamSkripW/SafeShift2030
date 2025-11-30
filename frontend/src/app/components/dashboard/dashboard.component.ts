@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar.component';
+import { AlertBannerComponent } from '../alert-banner/alert-banner.component';
 import { ShiftService } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
 import { Shift, Zone } from '../../models/shift.model';
@@ -17,7 +18,7 @@ interface StressDataPoint {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavbarComponent],
+  imports: [CommonModule, RouterModule, NavbarComponent, AlertBannerComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -196,5 +197,52 @@ export class DashboardComponent implements OnInit {
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  /**
+   * Get urgency badge class
+   */
+  getUrgencyClass(urgency?: string): string {
+    switch(urgency) {
+      case 'routine': return 'urgency-routine';
+      case 'attention_needed': return 'urgency-attention';
+      case 'urgent': return 'urgency-urgent';
+      case 'critical': return 'urgency-critical';
+      default: return 'urgency-routine';
+    }
+  }
+
+  /**
+   * Get category icon
+   */
+  getCategoryIcon(category: string): string {
+    const icons: { [key: string]: string } = {
+      'crisis': '🚨',
+      'burnout': '😰',
+      'patient_safety': '🏥',
+      'wellness': '💚',
+      'trend': '📊'
+    };
+    return icons[category] || '📌';
+  }
+
+  /**
+   * Get timing badge class
+   */
+  getTimingClass(timing: string): string {
+    switch(timing) {
+      case 'immediate': return 'timing-immediate';
+      case 'today': return 'timing-today';
+      case 'this_week': return 'timing-week';
+      case 'ongoing': return 'timing-ongoing';
+      default: return 'timing-ongoing';
+    }
+  }
+
+  /**
+   * Format timing text
+   */
+  formatTiming(timing: string): string {
+    return timing.replace('_', ' ').toUpperCase();
   }
 }

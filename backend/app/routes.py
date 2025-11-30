@@ -17,6 +17,7 @@ from app.services import (
     AgentMetricsService,
     AgentOrchestrator,
     ChatService
+    AlertManagerService
 )
 from app.services.voice_service import VoiceService
 
@@ -553,28 +554,27 @@ def create_shift():
             stress_level=data['StressLevel']
         )
         
-        # Generate AI insights for high-risk shifts (optional)
+        # Generate AI insights for all shifts (optional)
         ai_explanation = None
         ai_tips = None
-        if zone == 'red':
-            try:
-                insights = LLMService.generate_insights(
-                    shift_data={
-                        'hours_slept': data['HoursSleptBefore'],
-                        'shift_type': data['ShiftType'],
-                        'shift_length': data['ShiftLengthHours'],
-                        'patients_count': data['PatientsCount'],
-                        'stress_level': data['StressLevel'],
-                        'shift_note': data.get('ShiftNote', '')
-                    },
-                    index=safe_shift_index,
-                    zone=zone
-                )
-                ai_explanation = insights.get('explanation')
-                ai_tips = insights.get('tips')
-            except Exception as llm_error:
-                # LLM is optional - continue without it
-                print(f"LLM generation skipped: {llm_error}")
+        try:
+            insights = LLMService.generate_insights(
+                shift_data={
+                    'hours_slept': data['HoursSleptBefore'],
+                    'shift_type': data['ShiftType'],
+                    'shift_length': data['ShiftLengthHours'],
+                    'patients_count': data['PatientsCount'],
+                    'stress_level': data['StressLevel'],
+                    'shift_note': data.get('ShiftNote', '')
+                },
+                index=safe_shift_index,
+                zone=zone
+            )
+            ai_explanation = insights.get('explanation')
+            ai_tips = insights.get('tips')
+        except Exception as llm_error:
+            # LLM is optional - continue without it
+            print(f"LLM generation skipped: {llm_error}")
         
         shift = Shift(
             UserId=data['UserId'],
@@ -639,10 +639,21 @@ def create_shift():
             
             # Run orchestrated comprehensive analysis
             print(f"[ORCHESTRATION] Starting comprehensive analysis for shift {shift.ShiftId}...")
-            orchestration_result = get_orchestrator().generate_comprehensive_insight(shift_context)
-            print(f"[ORCHESTRATION] Result: success={orchestration_result.get('success')}, has_insight={'comprehensive_insight' in orchestration_result}")
+            print(f"[ORCHESTRATION] Context keys: {list(shift_context.keys())}")
+            print(f"[ORCHESTRATION] Stress level: {shift_context['stress_level']}, Zone: {shift_context['current_zone']}")
             
-            if orchestration_result.get('success') and orchestration_result.get('comprehensive_insight'):
+            orchestration_result = get_orchestrator().generate_comprehensive_insight(
+                shift_context=shift_context,
+                user_id=data['UserId'],
+                shift_id=shift.ShiftId,
+                audience='both'
+            )
+            
+            print(f"[ORCHESTRATION] Result keys: {list(orchestration_result.keys())}")
+            print(f"[ORCHESTRATION] Has comprehensive_insight: {'comprehensive_insight' in orchestration_result}")
+            print(f"[ORCHESTRATION] Agents run: {orchestration_result.get('agents_run', [])}")
+            
+            if orchestration_result.get('comprehensive_insight'):
                 agent_insights = orchestration_result['comprehensive_insight']
                 print(f"[ORCHESTRATION] ✓ Got insights with urgency: {agent_insights.get('urgency_level')}")
                 
@@ -650,21 +661,8 @@ def create_shift():
                 shift.AgentInsights = agent_insights
                 db.session.commit()
                 print(f"[ORCHESTRATION] ✓ Saved insights to database")
-                
-                # Create alerts based on urgency level
-                urgency = agent_insights.get('urgency_level')
-                if urgency in ['urgent', 'critical']:
-                    alert = BurnoutAlert(
-                        UserId=data['UserId'],
-                        AlertType='comprehensive_analysis',
-                        Severity='high' if urgency == 'urgent' else 'critical',
-                        AlertMessage=agent_insights.get('summary', 'Comprehensive agent analysis flagged concern'),
-                        IsResolved=False
-                    )
-                    db.session.add(alert)
-                    db.session.commit()
             else:
-                print(f"[ORCHESTRATION] ✗ No insights generated - success={orchestration_result.get('success')}")
+                print(f"[ORCHESTRATION] ✗ No insights generated - result: {orchestration_result}")
                     
         except Exception as agent_error:
             # Agent analysis is supplementary - don't fail the request
@@ -672,34 +670,37 @@ def create_shift():
             import traceback
             traceback.print_exc()
             agent_insights = None
+            orchestration_result = {}
         
-        # Run anomaly detection after shift is saved
+        # Run anomaly detection
+        anomalies = []
         try:
             anomalies = AnomalyService.detect_anomalies(user_id=data['UserId'])
-            
-            # Create alerts for detected anomalies
-            for anomaly in anomalies:
-                # Check if alert already exists
-                existing_alert = BurnoutAlert.query.filter_by(
-                    UserId=data['UserId'],
-                    AlertType=anomaly['type'],
-                    IsResolved=False
-                ).first()
-                
-                if not existing_alert:
-                    alert = BurnoutAlert(
-                        UserId=data['UserId'],
-                        AlertType=anomaly['type'],
-                        Severity=anomaly['severity'],
-                        AlertMessage=anomaly['message'],
-                        IsResolved=False
-                    )
-                    db.session.add(alert)
-            
-            db.session.commit()
+            print(f"[ANOMALY] Detected {len(anomalies)} anomalies")
         except Exception as anomaly_error:
-            # Anomaly detection is supplementary - don't fail the whole request
-            print(f"Anomaly detection error: {anomaly_error}")
+            print(f"[ANOMALY] ✗ ERROR: {anomaly_error}")
+        
+        # Centralized Alert Management - Let AlertManagerService handle all alerts
+        try:
+            alert_context = {
+                'agent_insights': orchestration_result.get('comprehensive_insight'),
+                'anomalies': anomalies,
+                'safety_analysis': orchestration_result.get('patient_safety'),
+                'shift_data': shift.to_dict()
+            }
+            
+            created_alerts = AlertManagerService.evaluate_and_create_alerts(
+                user_id=data['UserId'],
+                shift_id=shift.ShiftId,
+                context=alert_context
+            )
+            
+            print(f"[ALERT_MANAGER] Created {len(created_alerts)} alerts")
+            
+        except Exception as alert_error:
+            print(f"[ALERT_MANAGER] ✗ ERROR: {alert_error}")
+            import traceback
+            traceback.print_exc()
         
         response_data = {
             'success': True,
@@ -977,7 +978,7 @@ def delete_timeoff_request(timeoff_id):
 # ============================================
 @api_bp.route('/alerts', methods=['GET'])
 def get_alerts():
-    """Get all burnout alerts"""
+    """Get all burnout alerts with summary"""
     try:
         user_id = request.args.get('user_id')
         unresolved_only = request.args.get('unresolved') == 'true'
@@ -989,9 +990,16 @@ def get_alerts():
             query = query.filter_by(IsResolved=False)
         
         alerts = query.all()
+        
+        # Get summary for active alerts
+        summary = None
+        if user_id:
+            summary = AlertManagerService.get_alert_summary(int(user_id))
+        
         return jsonify({
             'success': True,
-            'data': [a.to_dict() for a in alerts],
+            'alerts': [a.to_dict() for a in alerts],
+            'summary': summary,
             'count': len(alerts)
         }), 200
     except Exception as e:
@@ -1069,6 +1077,64 @@ def delete_alert(alert_id):
         db.session.delete(alert)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Burnout alert deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/alerts/<int:alert_id>/resolve', methods=['POST'])
+def resolve_alert(alert_id):
+    """Mark an alert as resolved with optional action"""
+    try:
+        from app.models import TimeOffRequest
+        data = request.get_json() or {}
+        
+        # Get current user from token
+        resolved_by = None
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')\
+        
+        if token:
+            from app.auth import decode_token
+            decoded = decode_token(token)
+            if decoded:
+                resolved_by = decoded.get('user_id')
+        
+        resolution_note = data.get('note')
+        resolution_action = data.get('action', 'acknowledged')  # 'acknowledged', 'time_off_requested', 'will_monitor'
+        
+        # If action is time_off_requested, create a time off request
+        if resolution_action == 'time_off_requested':
+            alert = BurnoutAlert.query.get(alert_id)
+            if alert:
+                from datetime import date, timedelta
+                
+                # Create time off request for recovery
+                time_off = TimeOffRequest(
+                    UserId=alert.UserId,
+                    StartDate=date.today() + timedelta(days=1),
+                    EndDate=date.today() + timedelta(days=3),  # Default 3 days
+                    Reason='burnout_risk',
+                    Status='pending',
+                    Notes=f"Auto-created from alert: {alert.AlertType}. {resolution_note or ''}"
+                )
+                db.session.add(time_off)
+        
+        success = AlertManagerService.resolve_alert(
+            alert_id, 
+            resolved_by=resolved_by,
+            resolution_note=resolution_note,
+            resolution_action=resolution_action
+        )
+        
+        if not success:
+            return jsonify({'success': False, 'error': 'Alert not found'}), 404
+        
+        db.session.commit()  # Commit time off request if created
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Alert resolved successfully',
+            'action': resolution_action
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

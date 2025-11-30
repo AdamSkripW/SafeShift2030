@@ -1,6 +1,35 @@
 export type ShiftType = 'day' | 'night';
 export type Zone = 'green' | 'yellow' | 'red';
 
+export interface AgentInsight {
+  category: 'crisis' | 'burnout' | 'patient_safety' | 'wellness' | 'trend';
+  message: string;
+  supporting_data: string;
+  priority: number;
+}
+
+export interface Recommendation {
+  action: string;
+  timing: 'immediate' | 'today' | 'this_week' | 'ongoing';
+  expected_benefit: string;
+  source_agents: string[];
+}
+
+export interface AgentInsights {
+  summary: string;
+  urgency_level: 'routine' | 'attention_needed' | 'urgent' | 'critical';
+  primary_insights: AgentInsight[];
+  recommendations: Recommendation[];
+  nurse_message?: string;
+  supervisor_message?: string;
+  connections?: Array<{
+    insight: string;
+    agents_involved: string[];
+    implication: string;
+  }>;
+  confidence?: number;
+}
+
 export interface Shift {
   ShiftId?: number;
   UserId?: number;
@@ -17,6 +46,7 @@ export interface Shift {
   Zone?: Zone;
   AiExplanation?: string;
   AiTips?: string;
+  AgentInsights?: AgentInsights;
   
   CreatedAt?: string;
   UpdatedAt?: string;
