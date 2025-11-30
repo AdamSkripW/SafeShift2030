@@ -19,6 +19,7 @@ from app.services.prediction_service import PredictionService
 
 # AI/LLM Service
 from app.services.llm_service import LLMService
+from app.services.chat_service import ChatService
 
 # Agent Services
 from app.services.agents import (
@@ -44,6 +45,7 @@ __all__ = [
     'PredictionService',
     # AI
     'LLMService',
+    'ChatService',
     # Agents
     'CrisisDetectionAgent',
     'MicroBreakCoachAgent',
