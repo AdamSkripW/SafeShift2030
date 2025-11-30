@@ -1,5 +1,14 @@
 # SafeShift 2030 Backend API
 
+> **📋 For comprehensive project status and architecture, see [PROJECT_STATUS.md](PROJECT_STATUS.md)**
+
+**Quick Links**:
+- 🚀 [Quick Start Guide](QUICK_START.md) - Get started in 5 minutes
+- 🐛 [Recent Critical Fix](CRITICAL_BUG_FIX.md) - Field name mismatch bug fix
+- ✅ [Merge Review](ORCHESTRATION_MERGE_REVIEW.md) - Production readiness checklist
+
+---
+
 Flask REST API for SafeShift 2030 - connects to existing MySQL database.
 
 ## Prerequisites

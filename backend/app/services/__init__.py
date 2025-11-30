@@ -20,6 +20,17 @@ from app.services.prediction_service import PredictionService
 # AI/LLM Service
 from app.services.llm_service import LLMService
 
+# Agent Services
+from app.services.agents import (
+    CrisisDetectionAgent, 
+    MicroBreakCoachAgent,
+    PatientSafetyCorrelationAgent,
+    EmotionClassifierAgent,
+    InsightComposerAgent
+)
+from app.services.agent_metrics_service import AgentMetricsService
+from app.services.agent_orchestrator import AgentOrchestrator
+
 __all__ = [
     # CRUD
     'HospitalService',
@@ -33,4 +44,12 @@ __all__ = [
     'PredictionService',
     # AI
     'LLMService',
+    # Agents
+    'CrisisDetectionAgent',
+    'MicroBreakCoachAgent',
+    'PatientSafetyCorrelationAgent',
+    'EmotionClassifierAgent',
+    'InsightComposerAgent',
+    'AgentMetricsService',
+    'AgentOrchestrator',
 ]

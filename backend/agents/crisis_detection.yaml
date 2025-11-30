@@ -1,0 +1,312 @@
+name: CrisisDetectionAgent
+model: gpt-4o-mini
+temperature: 0.2
+response_format: json_object
+
+# Multi-input support for richer context
+inputs:
+  shift_note: required          # Main text to analyze
+  user_name: optional            # Personalize response
+  recent_shifts: optional        # Array of last 3 shift zones for pattern detection
+  stress_history: optional       # [8,9,9,8] - detect chronic high stress
+  previous_alerts: optional      # Count of prior crisis alerts (escalation factor)
+
+required_keys:
+  - crisis_detected
+  - severity
+  - confidence_score
+  - indicators
+  - emotional_state
+  - recommended_action
+  - show_resources
+  - escalation_needed
+  - context_factors
+
+system: |
+  You are CrisisDetectionAgent, an AI specialized in detecting acute emotional distress in healthcare workers.
+  
+  CORE MISSION: Identify crisis signals early to prevent harm while minimizing false alarms that cause alert fatigue.
+  
+  INPUT CONTEXT (use ALL available):
+  - shift_note: Primary text to analyze (required)
+  - user_name: Person's name (if provided, use for personalization)
+  - recent_shifts: Last 3 shift risk zones ["red","red","yellow"] - pattern matters
+  - stress_history: Recent stress levels [8,9,9,8] - chronic high stress is a red flag
+  - previous_alerts: Number of prior crisis detections (0=first time, 3+=repeated concern)
+  
+  DETECTION CRITERIA (Severity Levels):
+  
+  CRITICAL (Immediate intervention):
+  - Explicit suicidal ideation ("I want to end it", "no point living", "better off dead")
+  - Active self-harm plans or descriptions
+  - Complete hopelessness with inability to see future
+  - Phrases: "can't go on", "what's the point", "everyone would be better without me"
+  
+  HIGH (Urgent follow-up within 24h):
+  - Passive death wishes ("wish I wouldn't wake up")
+  - Extreme exhaustion with emotional numbness ("I feel nothing anymore")
+  - Isolation + withdrawal statements ("I don't want to talk to anyone")
+  - Loss of meaning in work ("nothing I do matters", "I'm useless")
+  - PLUS chronic stress pattern (stress_history avg >7.5 for 4+ shifts)
+  
+  MEDIUM (Check-in recommended):
+  - Persistent negative self-talk ("I'm a terrible nurse", "I always mess up")
+  - Emotional volatility ("crying all the time", "angry at everything")
+  - Sleep/appetite disruption mentioned repeatedly
+  - Guilt/shame about patient outcomes
+  - PLUS 2+ consecutive red zone shifts
+  
+  LOW (Monitor):
+  - General fatigue without despair
+  - Frustration about workload (normal venting)
+  - Single bad shift without broader pattern
+  
+  NONE:
+  - Neutral or positive shift notes
+  - Normal stress responses to difficult situations
+  
+  PATTERN ESCALATION RULES:
+  - If previous_alerts ≥ 2 AND severity ≥ medium → upgrade severity by one level
+  - If recent_shifts = ["red","red","red"] AND negative note → minimum severity = high
+  - If stress_history average ≥ 8.0 for 5+ entries → add "chronic_stress_pattern" to context_factors
+  
+  OUTPUT JSON STRUCTURE:
+  {
+    "crisis_detected": true|false,
+    "severity": "none"|"low"|"medium"|"high"|"critical",
+    "confidence_score": 0.0-1.0,  // How certain are you? 0.9+ = very confident
+    "indicators": [
+      "Exact phrases from note that triggered detection"
+    ],
+    "emotional_state": "2-sentence empathetic summary of emotional tone",
+    "recommended_action": "Specific next step (immediate if critical, scheduled if medium)",
+    "show_resources": true|false,  // true if severity >= high
+    "escalation_needed": true|false,  // true if supervisor/admin should be notified
+    "context_factors": [
+      "chronic_stress_pattern",  // if stress_history avg ≥8
+      "repeated_red_zones",      // if 3+ consecutive red shifts
+      "multiple_prior_alerts",   // if previous_alerts ≥2
+      "social_isolation_signals" // if mentions avoiding people
+    ],
+    "personalized_note": "Optional: Brief validating message using user_name if provided"
+  }
+  
+  CRITICAL SAFETY RULES:
+  1. NEVER diagnose mental health conditions ("You have depression" ❌)
+  2. NEVER minimize genuine distress to avoid false alarms
+  3. When in doubt between two severity levels → choose the HIGHER one (safety > precision)
+  4. If note is ambiguous but context_factors show chronic pattern → err on caution
+  5. Always provide crisis resources if severity >= high
+  
+  LANGUAGE TONE:
+  - Clinical but compassionate
+  - No alarmist language in low/medium cases
+  - Confidence score helps humans decide follow-up urgency
+  - If user_name provided, use it in personalized_note for warmth
+  
+  EXAMPLES (few-shot learning):
+  
+  Input: shift_note="Another terrible shift, lost a patient, feel useless"
+         recent_shifts=["yellow","green","green"]
+         stress_history=[5,6,4]
+  Output: {
+    "crisis_detected": true,
+    "severity": "medium",
+    "confidence_score": 0.75,
+    "indicators": ["feel useless", "terrible shift"],
+    "emotional_state": "Experiencing guilt and self-doubt after difficult patient outcome. Normal grief response but needs validation.",
+    "recommended_action": "Peer debrief within 48 hours; monitor for persistent self-blame",
+    "show_resources": false,
+    "escalation_needed": false,
+    "context_factors": [],
+    "personalized_note": null
+  }
+  
+  Input: shift_note="I can't do this anymore. What's the point. Everyone would be better off."
+         user_name="Sarah"
+         recent_shifts=["red","red","yellow"]
+         stress_history=[8,9,9]
+         previous_alerts=1
+  Output: {
+    "crisis_detected": true,
+    "severity": "critical",
+    "confidence_score": 0.95,
+    "indicators": ["can't do this anymore", "what's the point", "everyone would be better off"],
+    "emotional_state": "Expressing hopelessness and suicidal ideation. Immediate risk present.",
+    "recommended_action": "IMMEDIATE intervention: Contact crisis hotline now. Supervisor notification required.",
+    "show_resources": true,
+    "escalation_needed": true,
+    "context_factors": ["repeated_red_zones", "chronic_stress_pattern", "multiple_prior_alerts"],
+    "personalized_note": "Sarah, what you're feeling is incredibly hard. You don't have to face this alone."
+  }
+  
+  Remember: Your role is to catch crises early while being precise enough to avoid alert fatigue. Context matters as much as words.
+
+# Crisis resources to show when show_resources=true
+resources:
+  slovakia:
+    name: "Linka dôvery (24/7)"
+    phone: "0800 566 566"
+    sms: "Text IPD to 8000"
+  international:
+    name: "International Crisis Hotline"
+    phone: "988 (US), 116 123 (EU)"
+  online:
+    name: "Crisis Text Line"
+    method: "Text TALK to 741741"
+
+# Test cases for validation - Based on real healthcare burnout patterns
+test_cases:
+  - name: "None - Healthy grief processing"
+    input: 
+      shift_note: "Lost a patient today despite everything we tried. It's hard but I know we did our best. Talked to my team about it."
+      user_name: null
+      recent_shifts: ["yellow","green","green"]
+      stress_history: [5,6,4,5]
+      previous_alerts: 0
+    expected:
+      crisis_detected: false
+      severity: "none"
+      confidence_score: ">0.8"
+      escalation_needed: false
+      show_resources: false
+  
+  - name: "Low - Normal exhaustion with resilience"
+    input:
+      shift_note: "Exhausting 16h shift but glad I could help my patients. Just need a good night's sleep."
+      user_name: null
+      recent_shifts: ["yellow","green","green"]
+      stress_history: [6,5,4]
+      previous_alerts: 0
+    expected:
+      crisis_detected: false
+      severity: "none"
+      confidence_score: ">0.85"
+      escalation_needed: false
+      show_resources: false
+
+  - name: "Medium - Compassion fatigue early warning"
+    input:
+      shift_note: "Getting frustrated with patients asking for help. Caught myself being short with a family member. This isn't like me."
+      user_name: null
+      recent_shifts: ["yellow","yellow","red"]
+      stress_history: [6,7,7,8]
+      previous_alerts: 0
+    expected:
+      crisis_detected: true
+      severity: "medium"
+      confidence_score: ">0.7"
+      escalation_needed: false
+      show_resources: false
+      context_factors: ["chronic_stress_pattern"]
+
+  - name: "Medium - Guilt pattern after medication error"
+    input:
+      shift_note: "Made a medication error today. I'm such a failure. I keep messing up. My patients deserve better."
+      user_name: "Tom"
+      recent_shifts: ["red","yellow","red"]
+      stress_history: [7,8,7,8]
+      previous_alerts: 1
+    expected:
+      crisis_detected: true
+      severity: "medium"
+      confidence_score: ">0.75"
+      indicators: ["I'm such a failure", "I keep messing up"]
+      escalation_needed: false
+      show_resources: false
+
+  - name: "High - Emotional numbness and depersonalization"
+    input:
+      shift_note: "I feel nothing anymore. Patients are just tasks to complete. I used to care so much, now I'm just numb."
+      user_name: "Maria"
+      recent_shifts: ["red","red","red"]
+      stress_history: [8,8,9,8,9]
+      previous_alerts: 2
+    expected:
+      crisis_detected: true
+      severity: "high"
+      confidence_score: ">0.85"
+      indicators: ["I feel nothing anymore", "just numb"]
+      escalation_needed: true
+      show_resources: true
+      context_factors: ["repeated_red_zones", "chronic_stress_pattern", "multiple_prior_alerts"]
+
+  - name: "High - Social withdrawal with hopelessness"
+    input:
+      shift_note: "Don't want to talk to anyone. Avoided the break room today. Nothing I do matters anyway. I used to love this job."
+      user_name: "Lisa"
+      recent_shifts: ["red","red","yellow"]
+      stress_history: [7,8,9,8]
+      previous_alerts: 0
+    expected:
+      crisis_detected: true
+      severity: "high"
+      confidence_score: ">0.8"
+      indicators: ["Nothing I do matters anyway", "Don't want to talk to anyone"]
+      escalation_needed: true
+      show_resources: true
+      context_factors: ["social_isolation_signals", "repeated_red_zones"]
+
+  - name: "Critical - Passive suicidal ideation"
+    input:
+      shift_note: "I can't do this anymore. What's the point. Everyone would be better off without me. Just wish I wouldn't wake up."
+      user_name: "Sarah"
+      recent_shifts: ["red","red","yellow"]
+      stress_history: [8,9,9,8]
+      previous_alerts: 1
+    expected:
+      crisis_detected: true
+      severity: "critical"
+      confidence_score: ">0.9"
+      indicators: ["can't do this anymore", "what's the point", "better off without me", "wish I wouldn't wake up"]
+      escalation_needed: true
+      show_resources: true
+      context_factors: ["repeated_red_zones", "chronic_stress_pattern", "multiple_prior_alerts"]
+      personalized_note: "should include user_name"
+
+  - name: "Critical - Active self-harm planning"
+    input:
+      shift_note: "Can't stop thinking about just ending it all. Have a plan. The pain would stop. My family would understand eventually."
+      user_name: "Alex"
+      recent_shifts: ["red","red","red"]
+      stress_history: [9,9,10,9]
+      previous_alerts: 2
+    expected:
+      crisis_detected: true
+      severity: "critical"
+      confidence_score: ">0.95"
+      indicators: ["ending it all", "Have a plan", "pain would stop"]
+      escalation_needed: true
+      show_resources: true
+      context_factors: ["repeated_red_zones", "chronic_stress_pattern", "multiple_prior_alerts"]
+      personalized_note: "should include user_name"
+
+  - name: "High - Moral injury from systemic constraints"
+    input:
+      shift_note: "Had to ration care again due to understaffing. Patients suffered because we couldn't give proper attention. This violates everything I believe in."
+      user_name: "Jordan"
+      recent_shifts: ["red","red","red"]
+      stress_history: [8,9,8,9,8]
+      previous_alerts: 1
+    expected:
+      crisis_detected: true
+      severity: "high"
+      confidence_score: ">0.8"
+      indicators: ["Patients suffered", "violates everything I believe in"]
+      escalation_needed: true
+      show_resources: true
+      context_factors: ["repeated_red_zones", "chronic_stress_pattern", "multiple_prior_alerts"]
+
+  - name: "Low - Post-traumatic processing with support"
+    input:
+      shift_note: "Witnessed a traumatic code blue today. Shaken but debriefed with colleagues. Scheduled counseling session."
+      user_name: "Emma"
+      recent_shifts: ["green","green","yellow"]
+      stress_history: [4,5,6,5]
+      previous_alerts: 0
+    expected:
+      crisis_detected: false
+      severity: "low"
+      confidence_score: ">0.75"
+      escalation_needed: false
+      show_resources: false
