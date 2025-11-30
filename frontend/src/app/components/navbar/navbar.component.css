@@ -144,6 +144,10 @@
   padding: 8px;
   border-radius: 6px;
   transition: background-color 0.2s ease;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logout-btn:hover {
