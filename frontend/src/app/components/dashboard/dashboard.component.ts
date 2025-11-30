@@ -30,7 +30,7 @@ export class DashboardComponent implements OnInit {
   loading = true;
   errorMessage = '';
   generatingShifts = false;
-  
+
   // Shift Recommendations
   recommendations: any = null;
   loadingRecommendations = false;
@@ -60,14 +60,14 @@ export class DashboardComponent implements OnInit {
       }
       this.currentUser = user;
     });
-    
+
     // If no authenticated user, redirect to start page
     if (!this.authService.isAuthenticated()) {
       this.loading = false;
       this.router.navigate(['/start']);
       return;
     }
-    
+
     this.loadDashboardData();
   }
 
@@ -86,11 +86,11 @@ export class DashboardComponent implements OnInit {
           this.loading = false;
           return;
         }
-        
+
         // Separate finished shifts from recommended/future shifts
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Start of today
-        
+
         const finishedShifts = shifts.filter(shift => {
           // Filter out recommended shifts AND future shifts
           if (shift.IsRecommended) return false;
@@ -99,15 +99,7 @@ export class DashboardComponent implements OnInit {
           return shiftDate <= today; // Only include shifts up to today
         });
         const recommendedShifts = shifts.filter(shift => shift.IsRecommended);
-        
-        console.log('Finished shifts count:', finishedShifts.length);
-        console.log('Nov 30 shifts:', finishedShifts.filter(s => s.ShiftDate.includes('2025-11-30')).map(s => ({
-          ShiftId: s.ShiftId,
-          ShiftDate: s.ShiftDate,
-          CreatedAt: s.CreatedAt,
-          IsRecommended: s.IsRecommended
-        })));
-        
+
         // Only use finished shifts for stats and charts
         this.recentShifts = finishedShifts
           .sort((a, b) => {
@@ -119,31 +111,18 @@ export class DashboardComponent implements OnInit {
           })
           .slice(0, 7); // Last 7 finished shifts
 
-        console.log('First 3 shifts after sorting:', this.recentShifts.slice(0, 3).map(s => ({
-          ShiftId: s.ShiftId,
-          ShiftDate: s.ShiftDate,
-          CreatedAt: s.CreatedAt
-        })));
-
         this.calculateStats(finishedShifts);
         this.prepareStressData(this.recentShifts);
         this.latestShift = this.recentShifts.length > 0 ? this.recentShifts[0] : null;
-        
-        console.log('Latest shift selected:', {
-          ShiftId: this.latestShift?.ShiftId,
-          ShiftDate: this.latestShift?.ShiftDate,
-          CreatedAt: this.latestShift?.CreatedAt,
-          PatientsCount: this.latestShift?.PatientsCount
-        });
-        
+
         // Store all shifts for the full list view
         this.shifts = shifts;
-        
+
         // If there are recommended shifts, load the recommendation summary
         if (recommendedShifts.length > 0) {
           this.loadShiftRecommendations();
         }
-        
+
         this.loading = false;
         this.cdr.detectChanges(); // Manually trigger change detection
       },
@@ -346,7 +325,6 @@ export class DashboardComponent implements OnInit {
 
     this.shiftService.getShiftRecommendations(this.currentUser.UserId!, 7).subscribe({
       next: (response) => {
-        console.log('[Dashboard] Received recommendations:', response);
         if (response.success) {
           this.recommendations = response;
           this.showRecommendations = true;

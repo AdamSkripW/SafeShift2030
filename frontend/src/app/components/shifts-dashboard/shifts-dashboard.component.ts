@@ -47,11 +47,8 @@ export class ShiftsDashboardComponent implements OnInit {
 
     this.shiftService.getUserShifts().subscribe({
       next: (shifts) => {
-        console.log('Received shifts:', shifts);
-
         // Ensure shifts is an array
         if (!Array.isArray(shifts)) {
-          console.error('Shifts is not an array:', shifts);
           this.errorMessage = 'Invalid data format received from server.';
           this.loading = false;
           this.cdr.detectChanges();
@@ -67,7 +64,6 @@ export class ShiftsDashboardComponent implements OnInit {
         this.cdr.detectChanges(); // Manually trigger change detection
       },
       error: (error) => {
-        console.error('Error loading shifts:', error);
         this.errorMessage = error.error?.message || 'Failed to load shifts. Please try again.';
         this.loading = false;
         this.cdr.detectChanges();
@@ -132,7 +128,6 @@ export class ShiftsDashboardComponent implements OnInit {
           this.loadShifts();
         },
         error: (error) => {
-          console.error('Error deleting shift:', error);
           alert('Failed to delete shift. Please try again.');
         }
       });
