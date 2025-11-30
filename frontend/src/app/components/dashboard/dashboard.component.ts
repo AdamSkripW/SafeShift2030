@@ -24,10 +24,18 @@ interface StressDataPoint {
 })
 export class DashboardComponent implements OnInit {
   currentUser: User | null = null;
-  recentShifts: Shift[] = [];
+  shifts: Shift[] = []; // All shifts (finished + recommended)
+  recentShifts: Shift[] = []; // Only finished shifts for display
   stressData: StressDataPoint[] = [];
   loading = true;
   errorMessage = '';
+  generatingShifts = false;
+  
+  // Shift Recommendations
+  recommendations: any = null;
+  loadingRecommendations = false;
+  recommendationsError = '';
+  showRecommendations = false;
 
   // Stats
   totalShifts = 0;
@@ -84,15 +92,31 @@ export class DashboardComponent implements OnInit {
         }
         
         console.log('Number of shifts:', shifts.length);
-        this.recentShifts = shifts
+        
+        // Separate finished shifts from recommended/future shifts
+        const finishedShifts = shifts.filter(shift => !shift.IsRecommended);
+        const recommendedShifts = shifts.filter(shift => shift.IsRecommended);
+        
+        // Only use finished shifts for stats and charts
+        this.recentShifts = finishedShifts
           .sort((a, b) => new Date(b.ShiftDate).getTime() - new Date(a.ShiftDate).getTime())
-          .slice(0, 7); // Last 7 shifts
+          .slice(0, 7); // Last 7 finished shifts
 
-        this.calculateStats(shifts);
+        this.calculateStats(finishedShifts);
         this.prepareStressData(this.recentShifts);
         this.latestShift = this.recentShifts.length > 0 ? this.recentShifts[0] : null;
+        
+        // Store all shifts for the full list view
+        this.shifts = shifts;
+        
+        // If there are recommended shifts, load the recommendation summary
+        if (recommendedShifts.length > 0) {
+          this.loadShiftRecommendations();
+        }
+        
         this.loading = false;
         console.log('Dashboard loaded, loading =', this.loading);
+        
         this.cdr.detectChanges(); // Manually trigger change detection
       },
       error: (error) => {
@@ -108,6 +132,7 @@ export class DashboardComponent implements OnInit {
    * Calculate statistics from shifts
    */
   calculateStats(shifts: Shift[]): void {
+    // Receives only finished shifts (already filtered)
     this.totalShifts = shifts.length;
 
     if (shifts.length === 0) {
@@ -123,7 +148,7 @@ export class DashboardComponent implements OnInit {
     this.averageStress = Math.round(totalStress / shifts.length);
     this.averageSleep = Math.round((totalSleep / shifts.length) * 10) / 10;
 
-    // Get current zone from latest shift
+    // Get current zone from latest finished shift
     if (shifts.length > 0 && shifts[0].Zone) {
       this.currentZone = shifts[0].Zone;
     }
@@ -131,6 +156,7 @@ export class DashboardComponent implements OnInit {
 
   /**
    * Prepare stress data for graph
+   * Receives only finished shifts (already filtered)
    */
   prepareStressData(shifts: Shift[]): void {
     this.stressData = shifts
@@ -190,6 +216,40 @@ export class DashboardComponent implements OnInit {
   }
 
   /**
+   * Generate AI-recommended shifts and create them in database
+   */
+  generateRecommendedShifts(): void {
+    if (!this.currentUser?.UserId) {
+      alert('Please log in to generate shift recommendations');
+      return;
+    }
+
+    if (confirm('Generate 7 days of AI-recommended shifts? These will appear as suggested shifts you can review and edit.')) {
+      this.generatingShifts = true;
+      this.shiftService.generateRecommendedShifts(this.currentUser.UserId, 7)
+        .subscribe({
+          next: (response) => {
+            this.generatingShifts = false;
+            if (response.success) {
+              alert(`✅ Generated ${response.created_shifts?.length || 0} recommended shifts!`);
+              // Reload shifts to show new recommendations
+              this.loadDashboardData();
+              // Also load and display the recommendation summary
+              this.loadShiftRecommendations();
+            } else {
+              alert('Failed to generate shifts: ' + (response.error || 'Unknown error'));
+            }
+          },
+          error: (error) => {
+            this.generatingShifts = false;
+            console.error('Error generating shifts:', error);
+            alert('Failed to generate AI-recommended shifts. Please try again.');
+          }
+        });
+    }
+  }
+
+  /**
    * Get greeting based on time of day
    */
   getGreeting(): string {
@@ -244,5 +304,81 @@ export class DashboardComponent implements OnInit {
    */
   formatTiming(timing: string): string {
     return timing.replace('_', ' ').toUpperCase();
+  }
+
+  /**
+   * Load AI-recommended shifts from database
+   * Only called when user clicks "Generate AI Shifts" button
+   * Shows summary of recommended schedule
+   */
+  loadShiftRecommendations(): void {
+    if (!this.currentUser) return;
+
+    this.loadingRecommendations = true;
+    this.recommendationsError = '';
+
+    this.shiftService.getShiftRecommendations(this.currentUser.UserId!, 7).subscribe({
+      next: (response) => {
+        console.log('[Dashboard] Received recommendations:', response);
+        if (response.success) {
+          this.recommendations = response;
+          this.showRecommendations = true;
+        } else {
+          this.recommendationsError = response.error || 'Failed to load recommendations';
+        }
+        this.loadingRecommendations = false;
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('[Dashboard] Error loading recommendations:', error);
+        this.recommendationsError = 'Could not load recommendation summary';
+        this.loadingRecommendations = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /**
+   * Toggle recommendations visibility
+   */
+  toggleRecommendations(): void {
+    this.showRecommendations = !this.showRecommendations;
+  }
+
+  /**
+   * Get shift type badge class
+   */
+  getShiftTypeBadge(shiftType: string): string {
+    const classes: { [key: string]: string } = {
+      'rest': 'shift-rest',
+      'day': 'shift-day',
+      'night': 'shift-night'
+    };
+    return classes[shiftType] || 'shift-day';
+  }
+
+  /**
+   * Get risk level class
+   */
+  getRiskLevelClass(riskLevel: string): string {
+    const classes: { [key: string]: string } = {
+      'low': 'risk-low',
+      'medium': 'risk-medium',
+      'high': 'risk-high'
+    };
+    return classes[riskLevel] || 'risk-medium';
+  }
+
+  /**
+   * Get recovery priority badge
+   */
+  getRecoveryPriorityBadge(priority: string): string {
+    const classes: { [key: string]: string } = {
+      'low': 'priority-low',
+      'medium': 'priority-medium',
+      'high': 'priority-high',
+      'urgent': 'priority-urgent'
+    };
+    return classes[priority] || 'priority-medium';
   }
 }

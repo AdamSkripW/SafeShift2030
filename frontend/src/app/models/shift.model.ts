@@ -1,4 +1,4 @@
-export type ShiftType = 'day' | 'night';
+export type ShiftType = 'day' | 'night' | 'rest';
 export type Zone = 'green' | 'yellow' | 'red';
 
 export interface AgentInsight {
@@ -40,6 +40,7 @@ export interface Shift {
   PatientsCount: number; // >= 0
   StressLevel: number; // 1-10
   ShiftNote?: string;
+  IsRecommended?: boolean; // AI-generated recommended shift
   
   // Computed by backend
   SafeShiftIndex?: number; // 0-100

@@ -18,6 +18,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
   isCollapsed = false;
   isModalOpen = false;
   selectedAlert: BurnoutAlert | null = null;
+  loading = true;
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -32,6 +33,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
         console.log('[AlertBanner] Received alerts:', alerts);
         this.alerts = alerts.filter(a => !a.IsResolved);
         console.log('[AlertBanner] Filtered unresolved alerts:', this.alerts);
+        this.loading = false;
       })
     );
 

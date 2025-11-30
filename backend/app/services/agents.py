@@ -95,7 +95,7 @@ class BaseAgent:
             }
             
             if self.response_format:
-                kwargs["response_format"] = {"type": self.response_format}
+                kwargs["response_format"] = {"type": "json_object"}
             
             response = self.client.chat.completions.create(**kwargs)
             
@@ -105,6 +105,18 @@ class BaseAgent:
             # Parse JSON if expected
             if self.response_format == 'json_object':
                 result = json.loads(content)
+                
+                # CRITICAL FIX: Handle double-wrapped response (OpenAI returns {"response": "{...}", "other_fields": ...})
+                # We MUST prioritize the 'response' field if it's a stringified JSON
+                if 'response' in result and isinstance(result['response'], str):
+                    try:
+                        # The 'response' field contains the ACTUAL data we want
+                        unwrapped = json.loads(result['response'])
+                        # Completely replace result with unwrapped content, ignoring other fields
+                        result = unwrapped
+                    except json.JSONDecodeError:
+                        # If unwrapping fails, remove the 'response' field and use other fields
+                        result.pop('response', None)
             else:
                 result = {"response": content}
             
@@ -899,5 +911,216 @@ location: {location}"""
                 success=False,
                 error=error_msg
             )
+        
+        return fallback
+
+
+class ShiftRecommendationAgent(BaseAgent):
+    """
+    Predicts optimal shift schedule for next 3-7 days based on historical patterns,
+    current burnout risk, and recovery needs.
+    """
+    
+    def __init__(self):
+        config_path = Path(__file__).parent.parent.parent / 'agents' / 'shift_recommendation.yaml'
+        super().__init__(str(config_path))
+    
+    def predict_optimal_shifts(
+        self,
+        user_id: int,
+        historical_shifts: List[Dict[str, Any]],
+        consecutive_shifts: int,
+        sleep_deficit_hours: float,
+        avg_stress_7d: float,
+        stress_trend: str,
+        active_alerts: int,
+        days_ahead: int = 7,
+        user_name: str = None
+    ) -> Dict[str, Any]:
+        """
+        Generate optimal shift recommendations for next N days
+        
+        Args:
+            user_id: User ID for metrics
+            historical_shifts: List of recent shift summaries (last 14 days)
+            consecutive_shifts: Number of consecutive working days
+            sleep_deficit_hours: Total sleep deficit over last 14 days
+            avg_stress_7d: Average stress level last 7 days
+            stress_trend: "increasing", "stable", "decreasing"
+            active_alerts: Number of unresolved burnout alerts
+            days_ahead: Number of days to predict (default 7)
+            user_name: Optional user name for personalization
+        
+        Returns:
+            Dict with recommended_schedule, recovery_priority, key_recommendations, predicted_burnout_trend
+        """
+        start_time = time.time()
+        
+        # Input validation
+        if days_ahead < 1 or days_ahead > 14:
+            days_ahead = 7
+        
+        # Build request data
+        request_data = {
+            "user_id": user_id,
+            "user_name": user_name or "Healthcare Worker",
+            "historical_shifts": historical_shifts if historical_shifts else [],  # Empty list for new users
+            "consecutive_shifts": consecutive_shifts,
+            "sleep_deficit_hours": round(sleep_deficit_hours, 1),
+            "avg_stress_7d": round(avg_stress_7d, 1),
+            "stress_trend": stress_trend,
+            "active_alerts": active_alerts,
+            "days_ahead": days_ahead,
+            "current_date": datetime.now().strftime("%Y-%m-%d"),
+            "is_new_user": len(historical_shifts) == 0 if historical_shifts else True
+        }
+        
+        # Build user prompt from template
+        user_prompt = self.config['user_prompt_template'].format(**request_data)
+        system_prompt = self.config['system_prompt']
+        
+        # Call OpenAI
+        api_result = self._call_openai(system_prompt, user_prompt)
+        
+        if not api_result['success']:
+            return self._safe_fallback_recommendation(
+                api_result['error'], user_id, days_ahead, api_result['latency_ms']
+            )
+        
+        result = api_result['data']
+        
+        # Validate and enhance result
+        result = self._validate_recommendations(result, days_ahead)
+        
+        # Log metrics
+        self._log_metrics(
+            user_id=user_id,
+            shift_id=None,
+            request_data=request_data,
+            response_data=result,
+            latency_ms=api_result['latency_ms'],
+            token_usage=api_result['token_usage'],
+            success=True,
+            error=None
+        )
+        
+        return result
+    
+    def _validate_recommendations(self, result: Dict[str, Any], days_ahead: int) -> Dict[str, Any]:
+        """Validate and sanitize LLM output"""
+        
+        # CRITICAL: If we still have a 'response' string field, the unwrapping failed
+        # This means we need to extract the data from it
+        if 'response' in result and isinstance(result['response'], str):
+            try:
+                # Try one more time to unwrap
+                actual_data = json.loads(result['response'])
+                result = actual_data
+            except:
+                pass
+        
+        # Ensure recommended_schedule exists
+        if 'recommended_schedule' not in result:
+            result['recommended_schedule'] = []
+        
+        # Limit schedule to requested days
+        result['recommended_schedule'] = result['recommended_schedule'][:days_ahead]
+        
+        # Ensure all required fields exist
+        if 'recovery_priority' not in result:
+            result['recovery_priority'] = 'medium'
+        
+        if 'key_recommendations' not in result:
+            result['key_recommendations'] = ["Continue monitoring stress levels"]
+        
+        if 'predicted_burnout_trend' not in result:
+            result['predicted_burnout_trend'] = 'stable'
+        
+        # Validate each day in schedule
+        for day in result['recommended_schedule']:
+            if 'shift_type' not in day:
+                day['shift_type'] = 'day'
+            if 'recommended_hours' not in day:
+                day['recommended_hours'] = 8
+            if 'max_patients' not in day:
+                day['max_patients'] = 12
+            if 'reasoning' not in day:
+                day['reasoning'] = 'Based on historical patterns'
+            if 'risk_level' not in day:
+                day['risk_level'] = 'medium'
+        
+        return result
+    
+    def _safe_fallback_recommendation(
+        self,
+        error_msg: str,
+        user_id: int,
+        days_ahead: int,
+        latency_ms: int = 0
+    ) -> Dict[str, Any]:
+        """Return safe heuristic-based recommendations on LLM failure"""
+        from datetime import date, timedelta
+        
+        today = date.today()
+        schedule = []
+        
+        # Simple heuristic: recommend balanced workload with rest days
+        for day_offset in range(days_ahead):
+            shift_date = today + timedelta(days=day_offset + 1)
+            
+            # Recommend rest every 5th day for work-life balance
+            if (day_offset + 1) % 5 == 0:
+                schedule.append({
+                    "date": shift_date.isoformat(),
+                    "shift_type": "rest",
+                    "recommended_hours": 0,
+                    "recommended_sleep_hours": 8,
+                    "recommended_shift_length": 0,
+                    "max_patients": 0,
+                    "primary_focus": "Rest and recovery",
+                    "explanation": "Rest day for work-life balance",
+                    "tips": ["Get quality sleep", "Engage in relaxing activities", "Prepare for upcoming shifts"],
+                    "risk_level": "low",
+                    "consecutive_days": 0
+                })
+            else:
+                schedule.append({
+                    "date": shift_date.isoformat(),
+                    "shift_type": "day",
+                    "recommended_hours": 8,
+                    "recommended_sleep_hours": 8,
+                    "recommended_shift_length": 8,
+                    "max_patients": 10,
+                    "primary_focus": "Balanced workload",
+                    "explanation": "Standard day shift with moderate patient load",
+                    "tips": ["Aim for 8 hours of sleep", "Take regular breaks", "Stay hydrated"],
+                    "risk_level": "low",
+                    "consecutive_days": day_offset
+                })
+        
+        fallback = {
+            "recommended_schedule": schedule,
+            "recovery_priority": "low",
+            "key_recommendations": [
+                "Prioritize 7-8 hours of sleep each night",
+                "Take scheduled breaks during shifts",
+                "Monitor stress levels and adjust as needed"
+            ],
+            "predicted_burnout_trend": "stable",
+            "_fallback": True,
+            "_error": error_msg
+        }
+        
+        # Log fallback as failed metric
+        self._log_metrics(
+            user_id=user_id,
+            shift_id=None,
+            request_data={"days_ahead": days_ahead},
+            response_data=fallback,
+            latency_ms=latency_ms,
+            token_usage=None,
+            success=False,
+            error=error_msg
+        )
         
         return fallback

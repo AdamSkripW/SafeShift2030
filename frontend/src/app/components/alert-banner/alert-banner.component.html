@@ -1,4 +1,12 @@
-<div class="alert-banner-container" *ngIf="summary && summary.total_active > 0">
+<!-- Loading State -->
+<div class="alert-banner-container" *ngIf="loading">
+  <div class="alert-banner loading-banner">
+    <div class="spinner-small"></div>
+    <span class="loading-text">Loading alerts...</span>
+  </div>
+</div>
+
+<div class="alert-banner-container" *ngIf="!loading && summary && summary.total_active > 0">
   <div class="alert-banner" [ngClass]="getBannerClass()">
     <div class="alert-banner-header" (click)="toggleCollapse()">
       <div class="alert-banner-summary">
