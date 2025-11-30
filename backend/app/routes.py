@@ -10,6 +10,7 @@ from app.services import (
     AnomalyService,
     LLMService
 )
+from app.services.voice_service import VoiceService
 
 main_bp = Blueprint('main', __name__)
 api_bp = Blueprint('api', __name__)
@@ -545,6 +546,84 @@ def delete_shift(shift_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# VOICE DICTATION ENDPOINT
+# ============================================
+@api_bp.route('/shifts/parse-voice', methods=['POST'])
+def parse_voice_to_shift():
+    """
+    Parse voice audio and extract shift data
+    Accepts audio file and returns structured shift data
+    """
+    
+    print("\n" + "="*60)
+    print("[VOICE ENDPOINT] Received voice dictation request")
+    print("="*60)
+    
+    try:
+        # Debug: Log request details
+        print(f"[VOICE ENDPOINT] Content-Type: {request.content_type}")
+        print(f"[VOICE ENDPOINT] Files in request: {list(request.files.keys())}")
+        
+        # Check if audio file is present
+        if 'audio' not in request.files:
+            print("[VOICE ENDPOINT] ❌ No 'audio' field in request.files")
+            return jsonify({
+                'success': False,
+                'error': 'No audio file provided. Expected field name: "audio"'
+            }), 400
+        
+        audio_file = request.files['audio']
+        print(f"[VOICE ENDPOINT] Audio file: {audio_file.filename}")
+        print(f"[VOICE ENDPOINT] Content-Type: {audio_file.content_type}")
+        
+        if audio_file.filename == '':
+            print("[VOICE ENDPOINT] ❌ Empty filename")
+            return jsonify({
+                'success': False,
+                'error': 'Empty audio file'
+            }), 400
+        
+        # Process audio with Whisper + GPT
+        print("[VOICE ENDPOINT] Processing audio with VoiceService...")
+        voice_service = VoiceService()
+        
+        if not voice_service.enabled:
+            print("[VOICE ENDPOINT] ❌ VoiceService not enabled (check OPENAI_API_KEY)")
+            return jsonify({
+                'success': False,
+                'error': 'Voice service not configured. Check OPENAI_API_KEY in .env'
+            }), 500
+        
+        result = voice_service.process_audio_to_shift_data(audio_file)
+        
+        if not result.get('success'):
+            print(f"[VOICE ENDPOINT] ❌ VoiceService failed: {result.get('error')}")
+            return jsonify(result), 400
+        
+        print(f"[VOICE ENDPOINT] ✅ Success! Transcript: {result.get('transcript', '')[:100]}...")
+        print("="*60)
+        
+        return jsonify({
+            'success': True,
+            'transcript': result['transcript'],
+            'data': result['data'],
+            'message': 'Voice parsed successfully'
+        }), 200
+    
+    except Exception as e:
+        print(f"[VOICE ENDPOINT] ❌ Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("="*60)
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'type': type(e).__name__
+        }), 500
+
 
 # ============================================
 # TIME OFF REQUEST ENDPOINTS
