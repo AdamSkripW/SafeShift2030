@@ -45,6 +45,259 @@
   font-size: 14px;
 }
 
+/* Voice Dictation Section */
+.voice-dictation-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Audio wave background animation when recording */
+.voice-dictation-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.voice-dictation-section.recording::before {
+  opacity: 1;
+  animation: pulse-bg 2s infinite;
+}
+
+@keyframes pulse-bg {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.5; }
+}
+
+.voice-controls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.btn-voice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 36px;
+  font-size: 17px;
+  font-weight: 700;
+  color: white;
+  background: rgba(255, 255, 255, 0.25);
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  min-width: 320px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer effect on hover */
+.btn-voice::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  transition: left 0.5s;
+}
+
+.btn-voice:hover:not(:disabled)::after {
+  left: 100%;
+}
+
+.btn-voice:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.btn-voice:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.btn-voice:disabled {
+  opacity: 0.85;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Recording state - RED pulsing with stronger effect */
+.btn-voice.recording {
+  background: rgba(239, 68, 68, 0.5) !important;
+  border-color: rgba(239, 68, 68, 0.9) !important;
+  animation: pulse-recording 1.5s infinite !important;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7), 0 4px 12px rgba(239, 68, 68, 0.5) !important;
+}
+
+@keyframes pulse-recording {
+.voice-icon {
+  font-size: 28px;
+  display: inline-block;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* Recording icon - strong blinking red dot */
+.recording-pulse {
+  animation: blink-strong 0.8s infinite;
+}
+
+@keyframes blink-strong {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.3; 
+    transform: scale(1.1);
+  }
+}
+
+/* Processing icon - spinning gear */
+.processing-spin {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Audio wave animation */
+.audio-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+  margin-left: 8px;
+}
+
+.audio-wave span {
+  display: block;
+  width: 3px;
+  height: 100%;
+  background: white;
+  border-radius: 2px;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.audio-wave span:nth-child(1) { animation-delay: 0s; }
+.audio-wave span:nth-child(2) { animation-delay: 0.1s; }
+.audio-wave span:nth-child(3) { animation-delay: 0.2s; }
+.audio-wave span:nth-child(4) { animation-delay: 0.3s; }
+.audio-wave span:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 100% { 
+    height: 30%; 
+    background: rgba(255, 255, 255, 0.6);
+  }
+  50% { 
+    height: 100%; 
+    background: rgba(255, 255, 255, 1);
+  }
+}   box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6), 0 4px 12px rgba(59, 130, 246, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0), 0 8px 20px rgba(59, 130, 246, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), 0 4px 12px rgba(59, 130, 246, 0.5);
+    transform: scale(1);
+  }
+}
+
+.voice-icon {
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Recording icon - blinking red dot */
+.recording-pulse {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.2; }
+}
+
+/* Processing icon - spinning hourglass */
+.processing-spin {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.voice-status {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.transcript {
+  color: white;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.transcript strong {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.voice-error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.voice-hint {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.voice-hint small {
+  display: block;
+  line-height: 1.5;
+}
+
 /* Form */
 .shift-form {
   display: flex;

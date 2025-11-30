@@ -7,6 +7,61 @@
       <p class="subtitle">Track your work hours and well-being</p>
     </header>
 
+    <!-- Voice Dictation Section -->
+    <div class="voice-dictation-section" [class.recording]="isRecording">
+      <div class="voice-controls">
+        <button 
+          type="button" 
+          class="btn-voice"
+          [class.recording]="isRecording"
+          [class.processing]="isProcessingVoice"
+          [disabled]="isProcessingVoice"
+          [style.background]="isRecording ? 'rgba(239, 68, 68, 0.6)' : (isProcessingVoice ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.05)')"
+          [style.border-color]="isRecording ? '#ef4444' : (isProcessingVoice ? '#3b82f6' : 'rgba(255, 255, 255, 0.2)')"
+          [style.box-shadow]="isRecording ? '0 0 20px rgba(239, 68, 68, 0.5)' : (isProcessingVoice ? '0 0 20px rgba(59, 130, 246, 0.5)' : 'none')"
+          (click)="isRecording ? stopVoiceRecording() : startVoiceRecording()"
+        >
+          <!-- Idle state -->
+          <span class="voice-icon" *ngIf="!isRecording && !isProcessingVoice">🎤</span>
+          
+          <!-- Recording state -->
+          <span class="voice-icon recording-pulse" *ngIf="isRecording">🔴</span>
+          
+          <!-- Processing state -->
+          <span class="voice-icon processing-spin" *ngIf="isProcessingVoice">⚙️</span>
+          
+          <!-- Button text -->
+          <span *ngIf="!isRecording && !isProcessingVoice">🎙️ Start Voice Dictation</span>
+          <span *ngIf="isRecording">🔴 RECORDING</span>
+          <span *ngIf="isProcessingVoice">⏳ Processing...</span>
+
+          <!-- Audio wave animation when recording -->
+          <div class="audio-wave" *ngIf="isRecording">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Voice prompt for missing fields -->
+      <div class="voice-prompt" *ngIf="voicePrompt && !isProcessingVoice" style="background: rgba(251, 191, 36, 0.1); border: 2px solid #f59e0b; border-radius: 8px; padding: 12px; margin-top: 12px;">
+        <strong style="color: #f59e0b;">🎤 {{ voicePrompt }}</strong>
+      </div>
+
+      <div class="voice-error" *ngIf="voiceError">
+        <strong>❌ Error:</strong> {{ voiceError }}
+      </div>
+
+      <div class="voice-hint" *ngIf="!isRecording && !isProcessingVoice">
+        <small>💡 <strong>Example (speaking naturally):</strong></small>
+        <small>"Last night shift 12 hours, very stressed, critical cases"</small>
+        <br>
+      </div>
+    </div>
+
     <div class="error-banner" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>
