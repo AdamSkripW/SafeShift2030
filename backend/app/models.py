@@ -218,17 +218,7 @@ class BurnoutAlert(db.Model):
 
     AlertId = db.Column(db.Integer, primary_key=True)
     UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId', ondelete='CASCADE'), nullable=False, index=True)
-    AlertType = db.Column(db.Enum(
-        'chronic_low_sleep', 
-        'consecutive_nights', 
-        'high_stress_pattern', 
-        'declining_health',
-        'comprehensive_analysis',
-        'crisis_detected',
-        'patient_safety_risk',
-        'recovery_needed',
-        name='alert_type_enum'
-    ), nullable=False)
+    AlertType = db.Column(db.String(100), nullable=False)
     Severity = db.Column(db.Enum('low', 'medium', 'high', 'critical', name='alert_severity_enum'), nullable=False)
     AlertMessage = db.Column(db.Text)  # User-friendly short message
     Description = db.Column(db.Text)   # Detailed description

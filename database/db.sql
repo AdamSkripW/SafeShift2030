@@ -121,8 +121,9 @@ CREATE TABLE TimeOffRequests (
 CREATE TABLE BurnoutAlerts (
     AlertId INT AUTO_INCREMENT PRIMARY KEY,
     UserId INT NOT NULL,
-    AlertType ENUM('chronic_low_sleep', 'consecutive_nights', 'high_stress_pattern', 'declining_health') NOT NULL,
+    AlertType VARCHAR(100) NOT NULL,
     Severity ENUM('low', 'medium', 'high', 'critical') NOT NULL,
+    AlertMessage TEXT,
     Description TEXT,
     IsResolved BOOLEAN DEFAULT FALSE,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
