@@ -5,9 +5,9 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface BurnoutAlert {
-  Id: number;
+  AlertId: number;
   UserId: number;
-  ShiftId: number;
+  ShiftId?: number;
   AlertType: string;
   Severity: string;
   Description: string;
@@ -80,7 +80,7 @@ export class AlertService {
     }).pipe(
       tap(() => {
         // Update local state by removing the resolved alert
-        const currentAlerts = this.alertsSubject.value.filter(a => a.Id !== alertId);
+        const currentAlerts = this.alertsSubject.value.filter(a => a.AlertId !== alertId);
         this.alertsSubject.next(currentAlerts);
         
         // Update summary
@@ -99,7 +99,7 @@ export class AlertService {
     }).pipe(
       tap(() => {
         // Update local state by removing the deleted alert
-        const currentAlerts = this.alertsSubject.value.filter(a => a.Id !== alertId);
+        const currentAlerts = this.alertsSubject.value.filter(a => a.AlertId !== alertId);
         this.alertsSubject.next(currentAlerts);
       })
     );

@@ -252,7 +252,7 @@ export class EmployeesComponent implements OnInit {
    * Resolve an alert
    */
   resolveEmployeeAlert(alertId: number): void {
-    const alert = this.employeeAlerts.find(a => a.Id === alertId);
+    const alert = this.employeeAlerts.find(a => a.AlertId === alertId);
     if (alert) {
       this.selectedAlert = alert;
       this.isModalOpen = true;
@@ -267,7 +267,7 @@ export class EmployeesComponent implements OnInit {
   onResolveAlert(data: { action: string; note: string }): void {
     if (!this.selectedAlert) return;
 
-    this.alertService.resolveAlert(this.selectedAlert.Id, data.action, data.note).subscribe({
+    this.alertService.resolveAlert(this.selectedAlert.AlertId, data.action, data.note).subscribe({
       next: () => {
         // Close modal immediately
         this.closeModal();

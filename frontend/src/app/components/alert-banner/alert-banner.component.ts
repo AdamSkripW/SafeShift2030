@@ -80,7 +80,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
 
   resolveAlert(alertId: number, event: Event): void {
     event.stopPropagation();
-    const alert = this.alerts.find(a => a.Id === alertId);
+    const alert = this.alerts.find(a => a.AlertId === alertId);
     if (alert) {
       this.selectedAlert = alert;
       this.isModalOpen = true;
@@ -95,7 +95,7 @@ export class AlertBannerComponent implements OnInit, OnDestroy {
   onResolveAlert(data: { action: string; note: string }): void {
     if (!this.selectedAlert) return;
 
-    this.alertService.resolveAlert(this.selectedAlert.Id, data.action, data.note).subscribe({
+    this.alertService.resolveAlert(this.selectedAlert.AlertId, data.action, data.note).subscribe({
       next: () => {
         console.log('Alert resolved successfully');
         // Close modal immediately
