@@ -17,6 +17,7 @@ export class ShiftsDashboardComponent implements OnInit {
   loading = true;
   errorMessage = '';
   latestShift: Shift | null = null;
+  selectedShiftId: number | null = null;
 
   constructor(
     private shiftService: ShiftService,
@@ -52,6 +53,7 @@ export class ShiftsDashboardComponent implements OnInit {
           return new Date(b.ShiftDate).getTime() - new Date(a.ShiftDate).getTime();
         });
         this.latestShift = this.shifts.length > 0 ? this.shifts[0] : null;
+        this.selectedShiftId = this.latestShift?.ShiftId || null;
         this.loading = false;
         this.cdr.detectChanges(); // Manually trigger change detection
       },
@@ -132,7 +134,7 @@ export class ShiftsDashboardComponent implements OnInit {
    * View shift details
    */
   viewShiftDetails(shift: Shift): void {
-    // For now, just log - you can implement a detail view later
-    console.log('View shift details:', shift);
+    this.latestShift = shift;
+    this.selectedShiftId = shift.ShiftId || null;
   }
 }
