@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ChatService, ChatMessage } from '../../services/chat.service';
 import { AuthService } from '../../services/auth.service';
-import { Nl2brPipe } from '../../pipes/nl2br.pipe';
 
 interface DisplayMessage {
   text: string;
@@ -16,7 +15,7 @@ interface DisplayMessage {
 @Component({
   selector: 'app-chat-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, Nl2brPipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './chat-modal.component.html',
   styleUrl: './chat-modal.component.css'
 })

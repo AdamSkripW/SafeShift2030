@@ -190,7 +190,7 @@
             </div>
 
             <!-- Primary Insights -->
-            <div class="insights-grid" *ngIf="latestShift.AgentInsights.primary_insights?.length">
+            <div class="insights-grid" *ngIf="latestShift.AgentInsights.primary_insights.length">
               <h4 class="insights-heading">Key Insights</h4>
               <div class="insight-cards">
                 <div 
@@ -212,7 +212,7 @@
             </div>
 
             <!-- Recommendations -->
-            <div class="recommendations-section" *ngIf="latestShift.AgentInsights.recommendations?.length">
+            <div class="recommendations-section" *ngIf="latestShift.AgentInsights.recommendations.length">
               <h4 class="insights-heading">Recommended Actions</h4>
               <div class="recommendations-list">
                 <div 
@@ -223,7 +223,7 @@
                     <span class="timing-badge" [ngClass]="getTimingClass(rec.timing)">
                       {{ formatTiming(rec.timing) }}
                     </span>
-                    <span class="source-agents" *ngIf="rec.source_agents?.length">
+                    <span class="source-agents" *ngIf="rec.source_agents.length">
                       <small>From: {{ rec.source_agents.join(', ') }}</small>
                     </span>
                   </div>
