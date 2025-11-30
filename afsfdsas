@@ -1,0 +1,10 @@
+[33m339e4bf[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32madmin-service[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/admin-service[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Merge pull request #9 from AdamSkripW/dev-backend-3
+[33m5b5f124[m[33m ([m[1;31morigin/dev-backend-3[m[33m)[m fixed services and OpenAI connection is working
+[33mefc19df[m Merge pull request #8 from AdamSkripW/dev-backend-2
+[33m508f3af[m[33m ([m[1;31morigin/dev-backend-2[m[33m)[m consolided services and endpoints + added test files
+[33mfd0d8ea[m adjust workflow fix
+[33mbbb5479[m adjust workflow
+[33m1783c11[m Add or update the Azure App Service build and deployment workflow config
+[33m2445066[m Merge pull request #7 from AdamSkripW/flask-test
+[33m6b00753[m[33m ([m[1;31morigin/flask-test[m[33m)[m Merge branch 'dev-backend-2' into flask-test
+[33m5c94914[m Merge pull request #6 from AdamSkripW/dev-backend
