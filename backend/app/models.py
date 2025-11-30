@@ -356,3 +356,44 @@ class AgentMetric(db.Model):
         base['RequestPayload'] = self.RequestPayload
         base['ResponsePayload'] = self.ResponsePayload
         return base
+
+
+# ---------------------------------------------
+# Chat Logs (AI Assistant Conversation History)
+# ---------------------------------------------
+class ChatLog(db.Model):
+    __tablename__ = 'ChatLogs'
+    
+    ChatId = db.Column(db.Integer, primary_key=True)
+    UserId = db.Column(db.Integer, db.ForeignKey('Users.UserId', ondelete='CASCADE'), nullable=False, index=True)
+    UserMessage = db.Column(db.Text, nullable=False)
+    BotResponse = db.Column(db.Text, nullable=False)
+    
+    # Safety flags
+    CrisisDetected = db.Column(db.Boolean, default=False, index=True)
+    SafetyFiltered = db.Column(db.Boolean, default=False)
+    RequiresEscalation = db.Column(db.Boolean, default=False, index=True)
+    
+    # Metadata
+    Language = db.Column(db.String(5), default='sk')  # 'sk' or 'en'
+    TokensUsed = db.Column(db.Integer, nullable=True)
+    ContextUsed = db.Column(db.Boolean, default=True)
+    
+    CreatedAt = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationship
+    user = db.relationship('User', backref='chat_logs')
+    
+    def to_dict(self):
+        return {
+            'ChatId': self.ChatId,
+            'UserId': self.UserId,
+            'UserMessage': self.UserMessage,
+            'BotResponse': self.BotResponse,
+            'CrisisDetected': self.CrisisDetected,
+            'SafetyFiltered': self.SafetyFiltered,
+            'RequiresEscalation': self.RequiresEscalation,
+            'Language': self.Language,
+            'TokensUsed': self.TokensUsed,
+            'CreatedAt': self.CreatedAt.isoformat() if self.CreatedAt else None
+        }
